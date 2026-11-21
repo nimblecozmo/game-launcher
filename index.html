@@ -201,6 +201,13 @@ st.textContent = '@keyframes fade{from{opacity:0;transform:translateY(12px) scal
 document.head.appendChild(st);
 
 render();
+
+// installable PWA - caches the hub + thumbnails for instant offline opens
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
