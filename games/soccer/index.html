@@ -1,0 +1,2867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goal! — A Father's Day Match</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #0a1f0a;
+    color: #f5f5f0;
+    font-family: 'Trebuchet MS', system-ui, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+  #app {
+    position: relative;
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  #stage {
+    position: relative;
+    border: 4px solid #fff;
+    box-shadow: 0 0 60px rgba(255,255,255,0.15),
+                inset 0 0 60px rgba(0,0,0,0.3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  canvas { display: block; }
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 10px 16px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+    display: flex; justify-content: space-between; align-items: center;
+    pointer-events: none; z-index: 5;
+    font-weight: bold;
+  }
+  .score {
+    font-size: 28px;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+    letter-spacing: 2px;
+    min-width: 100px;
+  }
+  .score .name { font-size: 11px; opacity: 0.85; letter-spacing: 1px; display: block; }
+  .center-hud {
+    display: flex; flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .turn-indicator {
+    font-size: 13px;
+    color: #fbbf24;
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  .time {
+    font-size: 18px;
+    color: #fff;
+    background: rgba(0,0,0,0.6);
+    padding: 3px 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+  }
+  #overlay {
+    position: absolute; inset: 0;
+    background: rgba(5, 25, 5, 0.94);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 {
+    font-size: 44px;
+    color: #fbbf24;
+    text-shadow: 0 0 24px rgba(251, 191, 36, 0.6),
+                 4px 4px 0 #000;
+    margin-bottom: 6px;
+    letter-spacing: 4px;
+  }
+  #overlay h2 {
+    font-size: 18px;
+    color: #fff;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #overlay p {
+    font-size: 13px;
+    color: #d1fae5;
+    line-height: 1.45;
+    max-width: 540px;
+    margin-bottom: 4px;
+  }
+  #overlay .keys {
+    margin-top: 10px;
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    font-size: 12px;
+  }
+  #overlay .key {
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: #fbbf24;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  button {
+    margin-top: 14px;
+    background: #fbbf24;
+    border: none;
+    color: #0a1f0a;
+    padding: 10px 28px;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    box-shadow: 0 4px 0 #b45309, 0 6px 12px rgba(0,0,0,0.4);
+  }
+  button:hover {
+    background: #fcd34d;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #b45309, 0 8px 16px rgba(0,0,0,0.5);
+  }
+  button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #b45309, 0 3px 6px rgba(0,0,0,0.4);
+  }
+  /* VS BOTS button — distinct from KICK OFF so it stands out */
+  #vsBotsBtn {
+    background: #3b82f6;
+    color: #fff;
+    margin-top: 8px;
+    box-shadow: 0 4px 0 #1e3a8a, 0 6px 12px rgba(0,0,0,0.4);
+  }
+  #vsBotsBtn:hover {
+    background: #60a5fa;
+    box-shadow: 0 6px 0 #1e3a8a, 0 8px 16px rgba(0,0,0,0.5);
+  }
+  #vsBotsBtn:active {
+    box-shadow: 0 2px 0 #1e3a8a, 0 3px 6px rgba(0,0,0,0.4);
+  }
+  .heart {
+    display: inline-block;
+    color: #ef4444;
+    font-size: 24px;
+    animation: beat 1s infinite;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+  .fathers-day-banner {
+    background: linear-gradient(90deg, #1e40af 0%, #dc2626 100%);
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    color: #fff;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  #toast {
+    position: absolute;
+    top: 70px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.85);
+    color: #fbbf24;
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: 1px solid #fbbf24;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    z-index: 8;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+  }
+  #toast.show { opacity: 1; }
+  .footer {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #6b7280;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="hud">
+      <div class="score">
+        <span class="name">DAD (BLUE)</span>
+        <span id="score-p">0</span>
+      </div>
+      <div class="center-hud">
+        <div class="turn-indicator" id="turn">DAD'S TURN</div>
+        <div class="time" id="time">FIRST TO 5</div>
+      </div>
+      <div class="score" style="text-align:right">
+        <span class="name">KIDS (RED)</span>
+        <span id="score-c">0</span>
+      </div>
+    </div>
+    <canvas id="game" width="900" height="620"></canvas>
+    <div id="toast"></div>
+    <div id="overlay">
+      <div class="fathers-day-banner">⚽ Father's Day Match ⚽</div>
+      <h1>GOAL!</h1>
+      <h2>Soccer Pool — Dad vs The Kids</h2>
+      <p><span class="heart">♥</span> Happy Father's Day! Today you play soccer pool against your kids. <span class="heart">♥</span></p>
+      <p>Each side has <b>5 pieces</b>: goalkeeper, two defenders, defensive midfielder, striker.</p>
+      <p><b>Hold &amp; drag back</b> from a piece to pull it. Release to flick — the further you pull, the harder the hit.</p>
+      <p>You control <b>both sides</b> — flick your own pieces, then pass the mouse and let someone else flick theirs.</p>
+      <p>Score in <b>your own attacking net</b> for a point: kids attack the left net, dad attacks the right net.</p>
+      <p><b>First to 5 wins!</b> No turn limit — play as long as you like.</p>
+      <div class="keys">
+        <span class="key">HOLD &amp; DRAG</span> back from a piece
+        &nbsp;·&nbsp; <span class="key">RELEASE</span> to flick
+        &nbsp;·&nbsp; <span class="key">ESC</span> cancel
+      </div>
+      <button id="startBtn">KICK OFF</button>
+      <button id="vsBotsBtn">VS BOTS 🤖</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ============================================================
+  // CANVAS + STATE
+  // ============================================================
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const vsBotsBtn = document.getElementById('vsBotsBtn');
+  const scorePEl = document.getElementById('score-p');
+  const scoreCEl = document.getElementById('score-c');
+  const turnEl = document.getElementById('turn');
+  const timeEl = document.getElementById('time');
+  const toastEl = document.getElementById('toast');
+
+  const PAD = 30;
+  const pitchRect = { x: PAD, y: PAD, w: W - PAD * 2, h: H - PAD * 2 };
+  const GOAL_H = 200;
+  const goalTop = H / 2 - GOAL_H / 2;
+  const goalBot = H / 2 + GOAL_H / 2;
+  const PIECE_R = 18;
+  const BALL_R = 9;
+  const GOALS_TO_WIN = 5;
+
+  // Pitch grid: 12 columns × 7 rows of cells for placement.
+  // Cells are (col, row) — col 0 = far left, col 11 = far right.
+  const COLS = 12, ROWS = 7;
+  const CELL_W = pitchRect.w / COLS;
+  const CELL_H = pitchRect.h / ROWS;
+  function cellCenter(col, row) {
+    return {
+      x: pitchRect.x + (col + 0.5) * CELL_W,
+      y: pitchRect.y + (row + 0.5) * CELL_H,
+    };
+  }
+  // Convert world coords to (col,row)
+  function worldToCell(x, y) {
+    return {
+      col: clamp(Math.floor((x - pitchRect.x) / CELL_W), 0, COLS - 1),
+      row: clamp(Math.floor((y - pitchRect.y) / CELL_H), 0, ROWS - 1),
+    };
+  }
+
+  let pieces, ball, scoreP, scoreC, turn, currentSide, selected, aimDeg, state;
+  let phase; // 'idle' | 'aim' | 'flicking' | 'goal' | 'kickoff'
+  let flickAnim = null;  // { piece, t, fromX, fromY, toX, toY, ballFromX, ballFromY, ballToX, ballToY, ballT }
+  let goalCelebrate = 0;
+  let eggMode = false;     // easter egg: armed by clicking the ball (boom mode)
+  let vsBots = false;      // when true, kids' side plays automatically (bot mode)
+  let botLevel = 1;        // difficulty 1 (easy) / 2 (medium) / 3 (hard)
+  let botThinking = false; // true while bot is computing its next move
+  let goalMachine = null;  // easter egg 2: armed by clicking BR corner. { side: 'dad'|'kids', lastGoal: ms, count: N }
+  let explosions = [];     // active pixel-explosions { x, y, age, color, side, total }
+  let windGusts = [];      // pixelated wind-gust effects { x, y, age, total }
+  let screenShake = 0;     // remaining shake intensity (seconds)
+  // Easter egg 3: 10 clicks on the kids' score → Pac-Man falls from a pixelated portal
+  // and eats the pitch line by line. Each bitten cell is removed forever.
+  let pacmanClicks = 0;    // count of clicks on the kids' score area
+  // Web Audio context for sirens (lazy init on first user gesture — required by autoplay rules)
+  let audioCtx = null;
+  let sirenOsc = null;
+  let sirenGain = null;
+  function ensureAudio() {
+    if (audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { /* audio unavailable */ }
+  }
+  function startSiren() {
+    ensureAudio();
+    if (!audioCtx) return;
+    if (sirenOsc) return;  // already playing
+    sirenOsc = audioCtx.createOscillator();
+    sirenGain = audioCtx.createGain();
+    sirenOsc.type = 'square';
+    sirenOsc.frequency.value = 600;
+    sirenGain.gain.value = 0.05;
+    sirenOsc.connect(sirenGain);
+    sirenGain.connect(audioCtx.destination);
+    sirenOsc.start();
+    // Wobble the frequency up/down for an alarm feel
+    sirenOsc._wobble = setInterval(() => {
+      if (!sirenOsc) return;
+      const t = performance.now() / 1000;
+      sirenOsc.frequency.value = 600 + Math.sin(t * 8) * 200;
+    }, 30);
+  }
+  function stopSiren() {
+    if (!sirenOsc) return;
+    clearInterval(sirenOsc._wobble);
+    try { sirenOsc.stop(); } catch (e) {}
+    sirenOsc = null;
+    sirenGain = null;
+  }
+
+  let pacman = null;       // { phase: 'portal'|'falling'|'eating'|'teleporting'|'breach'|'liningUp'|'nuke'|'hacked'|'done', x, y, vy, mouthOpen, eatenRows: [{y, x, w}], rowIdx, nukeAge, hacker, breachAge, queue }
+  let hackerRain = [];     // pixelated matrix-style falling glyphs (active during nuke.hacked phase)
+  const PACMAN_CLICKS_TO_ARM = 10;
+
+  // Physics constants (hoisted to module scope so both piece and ball physics can use them)
+  const PIECE_FRICTION = 2.4;
+  const BALL_FRICTION  = 0.8;
+  const RESTITUTION = 0.85;
+  const MAX_DRAG = 500;  // max drag length in px — pull back can extend up to this far past a piece
+
+
+  state = 'menu';
+  function initState() {
+    scoreP = 0; scoreC = 0;
+    turn = 0;  // number of turns taken (each flick = 1 turn)
+    currentSide = 'dad';
+    selected = null;
+    aimDeg = 0;
+    phase = 'idle';
+    flickAnim = null;
+    goalCelebrate = 0;
+    forcedWinner = null;  // reset on every (re)start so play-again uses score-based logic
+    pacman = null;        // reset on every (re)start so PLAY AGAIN clears the eaten pitch
+    pacmanClicks = 0;
+    windGusts = [];       // clear any leftover wind effects
+    botThinking = false;  // reset bot state
+    stopSiren();           // silence any active breach siren
+    hackerRain = [];       // clear any leftover hacker-rain glyphs
+    setupPieces();
+    ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, hiddenUntil: null, invulnerableUntil: null };
+    updateHud();
+  }
+
+  function setupPieces() {
+    pieces = [];
+    // Dad (blue) — defends LEFT goal, attacks RIGHT goal. All on LEFT half.
+    pieces.push({ side: 'dad', role: 'GK',  col: 1, row: 3, x: 0, y: 0, color: '#3b82f6' });
+    pieces.push({ side: 'dad', role: 'DEF', col: 2, row: 1, x: 0, y: 0, color: '#3b82f6' });
+    pieces.push({ side: 'dad', role: 'DEF', col: 2, row: 5, x: 0, y: 0, color: '#3b82f6' });
+    pieces.push({ side: 'dad', role: 'DM',  col: 4, row: 3, x: 0, y: 0, color: '#3b82f6' });
+    pieces.push({ side: 'dad', role: 'ST',  col: 5, row: 3, x: 0, y: 0, color: '#3b82f6' });
+    // Kids (red) — defends RIGHT goal, attacks LEFT goal. All on RIGHT half.
+    pieces.push({ side: 'kids', role: 'GK',  col: 10, row: 3, x: 0, y: 0, color: '#ef4444' });
+    pieces.push({ side: 'kids', role: 'DEF', col: 9, row: 1, x: 0, y: 0, color: '#ef4444' });
+    pieces.push({ side: 'kids', role: 'DEF', col: 9, row: 5, x: 0, y: 0, color: '#ef4444' });
+    pieces.push({ side: 'kids', role: 'DM',  col: 7, row: 3, x: 0, y: 0, color: '#ef4444' });
+    pieces.push({ side: 'kids', role: 'ST',  col: 6, row: 3, x: 0, y: 0, color: '#ef4444' });
+    pieces.forEach(p => { const c = cellCenter(p.col, p.row); p.x = c.x; p.y = c.y; });
+  }
+
+  function updateHud() {
+    scorePEl.textContent = scoreP;
+    scoreCEl.textContent = scoreC;
+    // Show "BOT THINKING... [LVL N]" when the bot is about to flick
+    if (vsBots && botThinking) {
+      turnEl.textContent = `🤖 BOT LVL ${botLevel} THINKING...`;
+      turnEl.style.color = '#fde047';
+    } else {
+      turnEl.textContent = currentSide === 'dad' ? "DAD'S TURN" : "KIDS' TURN";
+      turnEl.style.color = currentSide === 'dad' ? '#60a5fa' : '#fca5a5';
+    }
+    // No turn limit — game ends when a team reaches GOALS_TO_WIN
+    timeEl.textContent = `FIRST TO ${GOALS_TO_WIN}`;
+  }
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function showToast(msg, ms = 1600) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove('show'), ms);
+  }
+
+  // ============================================================
+  // INPUT
+  // ============================================================
+  let mouse = { x: 0, y: 0 };
+  function canvasMouse(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (W / r.width),
+      y: (e.clientY - r.top) * (H / r.height),
+    };
+  }
+  // Drag state: when you press down on a piece, you can pull back to aim.
+  // Direction = opposite of drag vector. Power = drag length (capped).
+  let drag = null;  // { piece, startX, startY, curX, curY }
+
+  canvas.addEventListener('mousemove', (e) => {
+    mouse = canvasMouse(e);
+    if (drag) {
+      drag.curX = mouse.x;
+      drag.curY = mouse.y;
+    }
+    // Cursor: pointer when hovering the reset button
+    if (pacman && pacman.phase === 'done' && pacman.resetBtn) {
+      const btn = pacman.resetBtn;
+      const over = mouse.x >= btn.x && mouse.x <= btn.x + btn.w &&
+                   mouse.y >= btn.y && mouse.y <= btn.y + btn.h;
+      canvas.style.cursor = over ? 'pointer' : 'default';
+    } else {
+      canvas.style.cursor = 'default';
+    }
+  });
+  canvas.addEventListener('mousedown', (e) => {
+    mouse = canvasMouse(e);
+    onPress();
+  });
+  canvas.addEventListener('mouseup', (e) => {
+    mouse = canvasMouse(e);
+    onRelease();
+  });
+  canvas.addEventListener('mouseleave', (e) => {
+    // cancel drag if mouse leaves canvas
+    if (drag) {
+      drag = null;
+      selected = null;
+      phase = phase === 'aim' ? 'idle' : phase;
+    }
+  });
+  // touch
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 0) return;
+    const t = e.touches[0];
+    const r = canvas.getBoundingClientRect();
+    mouse = {
+      x: (t.clientX - r.left) * (W / r.width),
+      y: (t.clientY - r.top) * (H / r.height),
+    };
+    onPress();
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 0) return;
+    const t = e.touches[0];
+    const r = canvas.getBoundingClientRect();
+    mouse = {
+      x: (t.clientX - r.left) * (W / r.width),
+      y: (t.clientY - r.top) * (H / r.height),
+    };
+    if (drag) { drag.curX = mouse.x; drag.curY = mouse.y; }
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', (e) => {
+    onRelease();
+    e.preventDefault();
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === ' ') {
+      e.preventDefault();
+      // Space no longer auto-flicks — use drag. But still allow Enter to flick.
+      if (selected && phase === 'aim' && drag == null) {
+        doFlick(0, 0);
+      }
+    } else if (e.key === 'Escape') {
+      selected = null;
+      drag = null;
+      phase = 'idle';
+    } else if (e.key === 'Enter' && state === 'fulltime') {
+      startMatch();
+    }
+  });
+
+  function pieceAt(x, y) {
+    // find nearest piece within radius (in current side)
+    let best = null, bestD = PIECE_R + 4;
+    pieces.forEach(p => {
+      if (p.side !== currentSide) return;
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestD) { bestD = d; best = p; }
+    });
+    return best;
+  }
+
+  function ballAt(x, y) {
+    return Math.hypot(ball.x - x, ball.y - y) < BALL_R + 4;
+  }
+
+  // Find a piece at (x,y) regardless of side — used for the easter-egg explosion click
+  function pieceAtAny(x, y) {
+    let best = null, bestD = PIECE_R + 4;
+    pieces.forEach(p => {
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestD) { bestD = d; best = p; }
+    });
+    return best;
+  }
+
+  // Pick a deterministic pixel-art explosion color (team-themed + sparks)
+  const EXPLOSION_COLORS = ['#fbbf24', '#f59e0b', '#fde68a', '#fff7ed', '#dc2626', '#7f1d1d', '#1e3a8a', '#bfdbfe', '#fff', '#000'];
+
+  function aimAngle(fromX, fromY, toX, toY) {
+    return Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+  }
+
+  function onPress() {
+    if (state !== 'playing') return;
+
+    // RESET BUTTON: visible after the Pac-Man nuke+hacker sequence completes.
+    // Click anywhere on the button rect to fully reset the match (pitch + score + pieces).
+    if (pacman && pacman.phase === 'done') {
+      const btn = pacman.resetBtn;
+      if (mouse.x >= btn.x && mouse.x <= btn.x + btn.w &&
+          mouse.y >= btn.y && mouse.y <= btn.y + btn.h) {
+        // Full reset
+        scoreP = 0;
+        scoreC = 0;
+        scorePEl.textContent = scoreP;
+        scoreCEl.textContent = scoreC;
+        pacman = null;
+        pacmanClicks = 0;
+        hackerRain = [];
+        windGusts = [];
+        // Wipe every eaten rectangle by re-running setupPieces (resets pieces array).
+        // Ball is also reset since Pac-Man ate it.
+        setupPieces();
+        ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, hiddenUntil: null, invulnerableUntil: null };
+        goalMachine = null;
+        eggMode = false;
+        screenShake = 0;
+        forcedWinner = null;
+        updateHud();
+        showToast('🔄 PITCH RESET — KICK OFF! 🔄', 1200);
+        return;
+      }
+    }
+
+    // If a flick animation is still running, ignore presses (defensive)
+    if (flickAnim && flickAnim.active) return;
+    // If phase got stuck on something other than idle/aim (e.g. 'flicking'), reset it.
+    if (phase !== 'idle' && phase !== 'aim') phase = 'idle';
+
+    // EASTER EGG 3: 10 clicks on the kids' score HUD → spawn Pac-Man from a portal.
+    // The kids' score lives in the top-right corner of the HUD.
+    if (!pacman && mouse.x > W - 200 && mouse.y < 70) {
+      pacmanClicks++;
+      // Visual feedback: tiny pulse on each click of the score area
+      showToast(`PAC-MAN Clicks: ${pacmanClicks}/${PACMAN_CLICKS_TO_ARM}`, 700);
+      if (pacmanClicks >= PACMAN_CLICKS_TO_ARM) {
+        // Spawn Pac-Man from a pixelated portal at the top of the pitch
+        // Reset button rect — shown after the nuke+hacker finale (phase='done').
+        // Centered horizontally near the bottom of the pitch.
+        const btnW = 240, btnH = 56;
+        const btnX = W / 2 - btnW / 2;
+        const btnY = pitchRect.y + pitchRect.h - btnH - 12;
+        pacman = {
+          phase: 'portal',  // portal animation first
+          x: W / 2,
+          y: -40,           // start above canvas
+          vy: 0,
+          portalAge: 0,
+          mouthOpen: 0,     // 0..1 animation cycle
+          rowIdx: 0,        // which row is being eaten (top→bottom)
+          rowProgress: 0,   // 0..pitchRect.w pixels eaten in current row
+          ateAny: false,    // whether anything has actually been eaten
+          resetBtn: { x: btnX, y: btnY, w: btnW, h: btnH },
+        };
+        pacmanClicks = 0;
+        showToast('🟡 PAC-MAN SUMMONED FROM THE PORTAL 🟡', 2000);
+        screenShake = 0.3;
+      }
+      return;  // don't process this click as anything else
+    }
+
+    // EASTER EGG 2: click the BOTTOM-RIGHT corner (50x50 region) to arm the GOAL MACHINE.
+    // Then click any piece — that piece's side gets rapid-fire goals until the machine
+    // exhausts its run. Click the corner again to disable.
+    if (mouse.x > W - 50 && mouse.y > H - 50) {
+      // Toggle: if already armed, clear it.
+      if (goalMachine) {
+        goalMachine = null;
+        showToast('GOAL MACHINE OFF', 1200);
+      } else {
+        goalMachine = { side: null, lastGoal: 0, count: 0 };
+        showToast('⚽ GOAL MACHINE ARMED — CLICK A PLAYER ⚽', 1800);
+      }
+      selected = null; drag = null; phase = 'idle';
+      return;
+    }
+
+    // If goal machine is armed, ANY piece click starts the rapid scoring for that side.
+    if (goalMachine && !goalMachine.side) {
+      const victim = pieceAtAny(mouse.x, mouse.y);
+      if (victim) {
+        goalMachine.side = victim.side;
+        goalMachine.lastGoal = performance.now();
+        goalMachine.lastHudUpdate = 0;  // reset throttled DOM update timestamp
+        // Bonus burst: give 10 goals right away, then trickle the rest
+        for (let i = 0; i < 10; i++) {
+          if (goalMachine.side === 'dad') { scoreP++; scorePEl.textContent = scoreP; }
+          else { scoreC++; scoreCEl.textContent = scoreC; }
+        }
+        goalMachine.count = 10;
+        screenShake = 0.4;
+        showToast(`⚽ GOAL MACHINE: ${victim.side === 'dad' ? 'DAD' : 'KIDS'} ⚽`, 1500);
+        selected = null; drag = null; phase = 'idle';
+        return;
+      }
+      // miss — empty click clears it
+      goalMachine = null;
+      selected = null; drag = null; phase = 'idle';
+      return;
+    }
+
+    // EASTER EGG: click the soccer ball to arm cannon mode. Visual cue:
+    // a pulsing white ring around the ball. Any piece clicked after that = boom.
+    if (ballAt(mouse.x, mouse.y)) {
+      eggMode = !eggMode;
+      selected = null;
+      drag = null;
+      phase = 'idle';
+      if (eggMode) showToast('💣 BOOM MODE ARMED — CLICK A PLAYER 💣', 1800);
+      return;
+    }
+
+    // If easter-egg mode is on, ANY piece click detonates it (regardless of side)
+    if (eggMode) {
+      const victim = pieceAtAny(mouse.x, mouse.y);
+      if (victim) {
+        // spawn pixelated explosion, remove the piece from the field
+        explosions.push({
+          x: victim.x,
+          y: victim.y,
+          age: 0,
+          total: 0.7,  // explosion duration in seconds
+          color: victim.color,
+          side: victim.side,
+        });
+        pieces = pieces.filter(q => q !== victim);
+        // big screen shake + chunky toast
+        screenShake = 0.4;
+        showToast('💥 BOOM! 💥', 900);
+        selected = null;
+        drag = null;
+        phase = 'idle';
+        // ELIMINATION CHECK: if a team has been wiped out, the OTHER team wins automatically
+        const dadAlive = pieces.filter(p => p.side === 'dad').length;
+        const kidAlive = pieces.filter(p => p.side === 'kids').length;
+        if (dadAlive === 0 && kidAlive > 0) {
+          forcedWinner = 'kids';  // kids eliminated dad → kids win regardless of score
+          showToast(`💣 DAD WIPED OUT — KIDS WIN! 💣`, 2000);
+          setTimeout(() => { if (state === 'playing') fulltime(); }, 1200);
+          eggMode = false;
+        }
+        if (kidAlive === 0 && dadAlive > 0) {
+          forcedWinner = 'dad';   // dad eliminated kids → dad wins regardless of score
+          showToast(`💣 KIDS WIPED OUT — DAD WINS! 💣`, 2000);
+          setTimeout(() => { if (state === 'playing') fulltime(); }, 1200);
+          eggMode = false;
+        }
+        return;
+      }
+      // miss — click somewhere else just exits boom mode
+      eggMode = false;
+      selected = null;
+      drag = null;
+      phase = 'idle';
+      return;
+    }
+
+    const p = pieceAt(mouse.x, mouse.y);
+    if (p && p.side === currentSide) {
+      selected = p;
+      phase = 'aim';
+      drag = {
+        piece: p,
+        startX: mouse.x,
+        startY: mouse.y,
+        curX: mouse.x,
+        curY: mouse.y,
+      };
+      aimDeg = 0;
+    } else {
+      // clicked empty space — if we had a piece selected without an active drag, deselect
+      if (selected && !drag) {
+        selected = null;
+        phase = 'idle';
+      }
+    }
+  }
+
+  // Run from loop() every frame — fires rapid goals while goalMachine is active
+  function tickGoalMachine() {
+    if (!goalMachine || !goalMachine.side) return;
+    if (state !== 'playing') return;  // pause during goal celebration
+    const now = performance.now();
+    // 1000 goals/sec — cadence 1ms. rAF-driven loop fires ~60-120Hz, so each
+    // frame we add `Math.floor(elapsed / 1ms)` goals. With 60fps that's 16
+    // goals per frame × 60fps = ~960/sec; with 120fps that's ~8 × 120 = 960/sec.
+    const elapsed = now - goalMachine.lastGoal;
+    const CADENCE_MS = 1;
+    let burst = elapsed >= CADENCE_MS ? Math.floor(elapsed / CADENCE_MS) : 0;
+    if (burst > 0) {
+      goalMachine.lastGoal = now;
+      goalMachine.count += burst;
+      if (goalMachine.side === 'dad') {
+        scoreP += burst;
+      } else {
+        scoreC += burst;
+      }
+      // Tiny shimmer on every fired goal
+      screenShake = Math.max(screenShake, 0.03);
+      // No max — runs forever until the user clicks the BR corner again
+    }
+    // Throttled DOM update — refresh the scoreboard at ~60Hz regardless of tick rate
+    if (now - (goalMachine.lastHudUpdate || 0) >= 16) {
+      goalMachine.lastHudUpdate = now;
+      scorePEl.textContent = scoreP;
+      scoreCEl.textContent = scoreC;
+    }
+  }
+
+  function onRelease() {
+    if (!drag || !selected) {
+      drag = null;
+      return;
+    }
+    // If barely moved, treat as click — cancel
+    const dx = drag.curX - drag.startX;
+    const dy = drag.curY - drag.startY;
+    const dragLen = Math.hypot(dx, dy);
+    if (dragLen < 8) {
+      drag = null;
+      selected = null;
+      phase = 'idle';
+      return;
+    }
+    doFlick(dx, dy);
+  }
+
+  function doFlick(dragDx, dragDy) {
+    const piece = selected;
+    // Flick direction = opposite of drag (you pull back, release forward).
+    // If the player used the keyboard fallback, dragDx/dragDy are 0 — aim toward ball.
+    let flickAngle;
+    if (dragDx === 0 && dragDy === 0) {
+      flickAngle = aimAngle(piece.x, piece.y, ball.x, ball.y);
+    } else {
+      flickAngle = Math.atan2(-dragDy, -dragDx) * 180 / Math.PI;
+    }
+    // Power: drag length, capped at MAX_DRAG (hoisted to module scope).
+    // Pull-back can extend FAR past the pitch edge for a full-power shot — defenders
+    // and goalkeepers get extra reach so they can rocket the ball across the pitch.
+    const dragLen = Math.hypot(dragDx, dragDy);
+    const power = clamp(dragLen, 0, MAX_DRAG);
+    const powerFrac = power / MAX_DRAG;  // 0..1
+    const cellsToTravel = 1 + Math.round(powerFrac * 6);  // 1..7 cells (max power = up to 7 cells)
+
+    selected = null;
+    drag = null;
+    phase = 'flicking';
+
+    const rad = flickAngle * Math.PI / 180;
+    let targetCol = Math.round(piece.col + Math.cos(rad) * cellsToTravel);
+    let targetRow = Math.round(piece.row + Math.sin(rad) * cellsToTravel);
+    targetCol = clamp(targetCol, 0, COLS - 1);
+    targetRow = clamp(targetRow, 0, ROWS - 1);
+
+    // Bounce: if the target is occupied, try shorter hops until one is free.
+    let finalCol = piece.col, finalRow = piece.row;
+    for (let cells = cellsToTravel; cells >= 1; cells--) {
+      const tc = Math.round(piece.col + Math.cos(rad) * cells);
+      const tr = Math.round(piece.row + Math.sin(rad) * cells);
+      const cc = clamp(tc, 0, COLS - 1);
+      const cr = clamp(tr, 0, ROWS - 1);
+      if (!pieces.some(other => other !== piece && other.col === cc && other.row === cr)) {
+        finalCol = cc; finalRow = cr;
+        break;
+      }
+    }
+
+    // ====== PHYSICS-BASED FLICK ======
+    // The piece gets a velocity vector; it slides along the ground with friction.
+    // The ball, if in range, gets struck with a velocity of its own and slides
+    // independently — bouncing off pieces and walls like a real ball on a table.
+    const pieceSpeed = 320 + powerFrac * 1800;  // px/sec — full pull = 2120 px/sec (full reach across pitch)
+    const pieceVel = { vx: Math.cos(rad) * pieceSpeed, vy: Math.sin(rad) * pieceSpeed };
+    const fromPos = { x: piece.x, y: piece.y };
+
+    // Ball gets struck when the moving piece physically touches it (handled
+    // inside tickFlick's piece-ball collision — this is more reliable than
+    // a setTimeout because the piece might not be in range yet at 60ms).
+
+    flickAnim = {
+      piece,
+      fromX: fromPos.x, fromY: fromPos.y,
+      pieceVel,
+      pieceFriction: PIECE_FRICTION,
+      restitution: RESTITUTION,
+      t: 0,
+      active: true,
+      // piece-piece collision list — pieces that have been pushed and need to snap back
+      pushedPieces: [],
+      // piece-ball collision — ball gets a strong kick the moment the moving piece touches it
+      ballStruck: false,
+    };
+  }
+
+  function tickFlick(dt) {
+    if (!flickAnim || !flickAnim.active) return;
+    flickAnim.t += dt;
+
+    // Move piece with friction; stop when speed is tiny.
+    // Use substeps so high velocities don't tunnel through walls.
+    const p = flickAnim.piece;
+    const pv = flickAnim.pieceVel;
+
+    // SECURITY BREACH: if ANY part of the moving piece touches any black (eaten)
+    // rectangle, IMMEDIATELY stop the piece and trigger the breach. We check the
+    // piece's full bounding radius so it fires as soon as the leading edge touches.
+    // The piece is allowed to go FULLY ONTO the black (no snap-back) so the
+    // mini Pac-Men can pick it up and re-line it up later.
+    if (pacman && pacman.phase === 'eating' && pacman.eaten && pacman.eaten.length > 0) {
+      const pieceRadius = PIECE_R;
+      for (const r of pacman.eaten) {
+        // Closest point on the eaten rect to the piece's center
+        const cx = Math.max(r.x0, Math.min(p.x, r.x1));
+        const cy = Math.max(r.y0, Math.min(p.y, r.y1));
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        const dist = Math.hypot(dx, dy);
+        // Trigger as soon as the piece's EDGE touches the black (not just the center)
+        if (dist < pieceRadius * 1.5) {
+          // HARD STOP — zero out velocity completely so the piece is frozen in place
+          pv.vx = 0;
+          pv.vy = 0;
+          // No snap-back — the piece can rest FULLY ON the black (visually on top of it).
+          // Trigger the breach (one-shot — guarded by pacman.breachTriggered)
+          if (!pacman.breachTriggered) {
+            pacman.breachTriggered = true;
+            triggerSecurityBreach(flickAnim);  // capture the piece that triggered
+          }
+          // Also kill the flick animation immediately so substeps stop
+          flickAnim.active = false;
+          flickAnim = null;
+          return;
+        }
+      }
+    }
+
+    // Sanity guard: kill NaN/Infinity on position AND velocity so the game never gets stuck
+    if (!isFinite(p.x) || !isFinite(p.y)) {
+      const pc = cellCenter(p.col, p.row);
+      p.x = pc.x; p.y = pc.y;
+    }
+    if (!isFinite(pv.vx) || !isFinite(pv.vy)) {
+      pv.vx = 0; pv.vy = 0;
+    }
+
+    const pSpeed = Math.hypot(pv.vx, pv.vy);
+
+    if (pSpeed > 8) {
+      const SUBSTEPS = 4;
+      const subDt = dt / SUBSTEPS;
+      for (let s = 0; s < SUBSTEPS; s++) {
+        // friction
+        const curSpeed = Math.hypot(pv.vx, pv.vy);
+        if (curSpeed <= 8) break;
+        const decel = flickAnim.pieceFriction * 60 * subDt;
+        const newSpeed = Math.max(0, curSpeed - decel);
+        const scale = newSpeed / curSpeed;  // curSpeed > 8 here, never zero
+        pv.vx *= scale;
+        pv.vy *= scale;
+        // integrate
+        p.x += pv.vx * subDt;
+        p.y += pv.vy * subDt;
+        // piece-piece collisions
+        // Only respond to the FIRST piece the flick collides with per substep.
+        // A cascade (A→B→C) would otherwise collapse the whole formation.
+        let firstCollision = true;
+        pieces.forEach(other => {
+          if (other === p) return;
+          if (!firstCollision) return;
+          const ddx = other.x - p.x;
+          const ddy = other.y - p.y;
+          const dd = Math.hypot(ddx, ddy);
+          const md = PIECE_R * 2;
+          if (dd < md && dd > 0.001) {
+            const overlap = md - dd;
+            const nx = ddx / dd, ny = ddy / dd;
+            p.x -= nx * overlap / 2;
+            p.y -= ny * overlap / 2;
+            other.x += nx * overlap / 2;
+            other.y += ny * overlap / 2;
+            const dot = pv.vx * nx + pv.vy * ny;
+            if (dot < 0) {
+              // Standard 2D reflection, scaled by restitution once
+              pv.vx -= 2 * dot * nx * flickAnim.restitution;
+              pv.vy -= 2 * dot * ny * flickAnim.restitution;
+            }
+            firstCollision = false;
+          }
+        });
+        // piece-ball collision — strong kick when the moving piece touches the ball
+        if (!flickAnim.ballStruck) {
+          const bd = Math.hypot(ball.x - p.x, ball.y - p.y);
+          if (bd < PIECE_R + BALL_R) {
+            // Use the piece's current velocity as the strike direction
+            const ps = Math.hypot(pv.vx, pv.vy);
+            if (ps > 50) {
+              // Strong strike: piece speed + a fixed kick so the ball reliably
+              // escapes the cluster of pieces around the contact point.
+              const k = ps + 480;
+              const ux = pv.vx / ps, uy = pv.vy / ps;
+              ball.vx = ux * k;
+              ball.vy = uy * k;
+              flickAnim.ballStruck = true;
+              // Push the ball out so it doesn't immediately re-collide
+              const bnx = (ball.x - p.x) / bd, bny = (ball.y - p.y) / bd;
+              ball.x += bnx * (PIECE_R + BALL_R - bd + 1);
+              ball.y += bny * (PIECE_R + BALL_R - bd + 1);
+            }
+          }
+        }
+        // piece bounces off pitch walls (top/bottom)
+        if (p.y - PIECE_R < pitchRect.y) {
+          p.y = pitchRect.y + PIECE_R;
+          pv.vy = Math.abs(pv.vy) * flickAnim.restitution;
+        }
+        if (p.y + PIECE_R > pitchRect.y + pitchRect.h) {
+          p.y = pitchRect.y + pitchRect.h - PIECE_R;
+          pv.vy = -Math.abs(pv.vy) * flickAnim.restitution;
+        }
+        // left/right walls only outside goal area
+        if (p.y < goalTop || p.y > goalBot) {
+          if (p.x - PIECE_R < pitchRect.x) {
+            p.x = pitchRect.x + PIECE_R;
+            pv.vx = Math.abs(pv.vx) * flickAnim.restitution;
+          }
+          if (p.x + PIECE_R > pitchRect.x + pitchRect.w) {
+            p.x = pitchRect.x + pitchRect.w - PIECE_R;
+            pv.vx = -Math.abs(pv.vx) * flickAnim.restitution;
+          }
+        } else {
+          // piece is inside the goal-mouth height band — even if it's
+          // "past" the pitch, it shouldn't escape: clamp it at the back of the net
+          if (p.x < pitchRect.x - 22) {
+            p.x = pitchRect.x - 22 + PIECE_R;
+            pv.vx = Math.abs(pv.vx) * flickAnim.restitution;
+          }
+          if (p.x > pitchRect.x + pitchRect.w + 22) {
+            p.x = pitchRect.x + pitchRect.w + 22 - PIECE_R;
+            pv.vx = -Math.abs(pv.vx) * flickAnim.restitution;
+          }
+        }
+      }
+    } else {
+      p.vx = 0; p.vy = 0;
+      pv.vx = 0; pv.vy = 0;
+    }
+
+    // Ball physics are handled separately by tickBall() each frame — this keeps
+    // ball motion alive even after the flickAnim ends, so it keeps rolling.
+
+    // Check completion: piece has stopped AND ball has stopped
+    const pieceStopped = Math.hypot(pv.vx, pv.vy) < 8;
+    const ballStopped = Math.hypot(ball.vx, ball.vy) < 4;
+    // Hard timeout: even if the physics somehow never settles, force completion after 3 seconds
+    const timedOut = flickAnim.t > 3.0;
+    if ((pieceStopped && ballStopped && flickAnim.t > 0.4) || timedOut) {
+      // Snap piece to nearest cell. worldToCell clamps to [0, COLS-1] so
+      // an out-of-bounds piece gets pulled back onto the pitch.
+      const c = worldToCell(p.x, p.y);
+      p.col = c.col; p.row = c.row;
+      const cc = cellCenter(p.col, p.row);
+      p.x = cc.x; p.y = cc.y;
+      // Snap other pieces (that got pushed) back to their cells too
+      pieces.forEach(o => {
+        if (o === p) return;
+        const oc = worldToCell(o.x, o.y);
+        o.col = clamp(oc.col, 0, COLS - 1); o.row = clamp(oc.row, 0, ROWS - 1);
+        const occ = cellCenter(o.col, o.row);
+        o.x = occ.x; o.y = occ.y;
+      });
+      flickAnim.active = false;
+      pv.vx = 0; pv.vy = 0;
+      onFlickComplete();
+    }
+  }
+
+  function onFlickComplete() {
+    // If a goal already fired (tickBall detected it), don't double-count.
+    if (state !== 'playing') {
+      flickAnim = null;
+      phase = 'idle';
+      return;
+    }
+    // Snap piece to its cell
+    pieces.forEach(p => {
+      const c = cellCenter(p.col, p.row);
+      p.x = c.x; p.y = c.y;
+    });
+    flickAnim = null;
+    phase = 'idle';
+    endTurn();
+  }
+
+  function onGoal(side) {
+    if (state !== 'playing') return;  // already counting
+    state = 'goal_celebrate';  // pause physics until reset
+    goalCelebrate = 3.0;  // yellow flash lasts 3 seconds
+    drawGoalFlash._last = performance.now();  // reset flash timer
+    if (side === 'dad') {
+      scoreP++;
+      scorePEl.textContent = scoreP;
+      showToast('⚽ GOAL FOR DAD! ⚽', 3000);
+    } else {
+      // kids
+      scoreC++;
+      scoreCEl.textContent = scoreC;
+      showToast('⚽ GOAL FOR THE KIDS! ⚽', 3000);
+    }
+    // Other side kicks off
+    currentSide = side === 'dad' ? 'kids' : 'dad';
+    if (flickAnim) flickAnim.active = false;
+    ball.vx = 0; ball.vy = 0;
+    selected = null;
+    drag = null;
+    phase = 'idle';
+    setTimeout(() => {
+      // reset positions, ball to center
+      setupPieces();
+      ball = { x: W / 2, y: H / 2, vx: 0, vy: 0 };
+      flickAnim = null;
+      phase = 'idle';
+      state = 'playing';
+      endTurn(true);
+    }, 3000);  // match the yellow-flash duration (3s)
+  }
+
+  function endTurn(justScored = false) {
+    // First-to-5: end the game immediately when either side hits the threshold.
+    if (scoreP >= GOALS_TO_WIN || scoreC >= GOALS_TO_WIN) {
+      fulltime();
+      return;
+    }
+    // swap sides (unless we just came from a goal which set currentSide already)
+    if (!justScored) currentSide = currentSide === 'dad' ? 'kids' : 'dad';
+    selected = null;
+    drag = null;
+    phase = 'idle';
+    updateHud();
+    // Sweep pieces out of goal areas (free, doesn't consume a turn)
+    sweepPiecesOutOfGoals();
+    // Bot's turn? (only for kids in vsBots mode)
+    if (vsBots && currentSide === 'kids' && state === 'playing') {
+      botThinking = true;
+      // Wait ~1.2s before the bot flicks (so it feels like "thinking")
+      setTimeout(doBotFlick, 1200);
+    }
+  }
+
+  // Bot AI: pick a kid piece, compute a flick direction, simulate a drag-and-release.
+  // Behavior scales with botLevel:
+  //   1 (easy):   picks random kid piece, aim toward ball, low power, big inaccuracy
+  //   2 (medium): picks nearest kid piece, aim toward ball, mid power, some inaccuracy
+  //   3 (hard):   picks nearest kid piece, aim to drive ball into LEFT net, max power, accurate
+  function doBotFlick() {
+    if (!vsBots || currentSide !== 'kids' || state !== 'playing') {
+      botThinking = false;
+      return;
+    }
+    // Choose piece per level
+    let nearest = null;
+    if (botLevel === 1) {
+      // Random kid piece — easiest
+      const kids = pieces.filter(p => p.side === 'kids');
+      if (kids.length === 0) { botThinking = false; return; }
+      nearest = kids[Math.floor(Math.random() * kids.length)];
+    } else {
+      // Nearest kid piece to ball
+      let bestDist = Infinity;
+      for (const p of pieces) {
+        if (p.side !== 'kids') continue;
+        const d = Math.hypot(p.x - ball.x, p.y - ball.y);
+        if (d < bestDist) { bestDist = d; nearest = p; }
+      }
+    }
+    if (!nearest) { botThinking = false; return; }
+
+    // Decide target point: ball, or goal mouth on level 3
+    // Left net (kids score here): x = pitchRect.x - 30 (just outside left edge),
+    //                             y = H/2 ± random offset within GOAL_H/2
+    let targetX, targetY;
+    if (botLevel === 3) {
+      // Aim for goal mouth, with small random offset based on GOAL_H
+      targetX = pitchRect.x - 30;
+      // Top half / bottom half vary to keep it fair
+      targetY = goalTop + 30 + Math.random() * (GOAL_H - 60);
+    } else {
+      // Aim at ball with some randomness
+      targetX = ball.x;
+      targetY = ball.y;
+    }
+
+    // Compute flick vector: piece should fly TOWARD target.
+    // Drag direction is OPPOSITE (you pull back from target, release toward target).
+    let dx = targetX - nearest.x;
+    let dy = targetY - nearest.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1) { botThinking = false; return; }
+
+    // Add aim inaccuracy scaled by level
+    // Level 1: ±45° spread, Level 2: ±20°, Level 3: ±5°
+    const inaccuracyDeg = botLevel === 1 ? 45 : botLevel === 2 ? 20 : 5;
+    const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * (inaccuracyDeg * Math.PI / 180);
+    const nx = Math.cos(angle);
+    const ny = Math.sin(angle);
+
+    // Power scaled by level: 30-55% (L1), 50-80% (L2), 75-100% (L3)
+    let powerMin, powerMax;
+    if (botLevel === 1) { powerMin = 0.30; powerMax = 0.55; }
+    else if (botLevel === 2) { powerMin = 0.50; powerMax = 0.80; }
+    else { powerMin = 0.75; powerMax = 1.00; }
+    const power = powerMin + Math.random() * (powerMax - powerMin);
+    const dragDx = nx * MAX_DRAG * power;
+    const dragDy = ny * MAX_DRAG * power;
+
+    // Build drag state and call doFlick with the drag deltas.
+    // dragDx/dragDy point AWAY from the target, so doFlick will fire TOWARD target.
+    drag = {
+      piece: nearest,
+      startX: nearest.x,
+      startY: nearest.y,
+      curX: nearest.x + dragDx,
+      curY: nearest.y + dragDy,
+    };
+    selected = nearest;
+    doFlick(dragDx, dragDy);
+    drag = null;
+    selected = null;
+    botThinking = false;
+  }
+
+  // Move any piece that's landed inside a goal mouth back onto the pitch.
+  // Doesn't consume a turn — just a free cleanup so pieces don't get stuck.
+  function sweepPiecesOutOfGoals() {
+    pieces.forEach(p => {
+      const inLeft = p.x < pitchRect.x && p.y > goalTop - PIECE_R && p.y < goalBot + PIECE_R;
+      const inRight = p.x > pitchRect.x + pitchRect.w && p.y > goalTop - PIECE_R && p.y < goalBot + PIECE_R;
+      if (inLeft) {
+        // nudge back to just inside the pitch, nearest cell
+        const newCol = 0;
+        const newRow = clamp(Math.round((p.y - pitchRect.y) / CELL_H - 0.5), 0, ROWS - 1);
+        p.col = newCol; p.row = newRow;
+        const c = cellCenter(newCol, newRow);
+        p.x = c.x; p.y = c.y;
+      } else if (inRight) {
+        const newCol = COLS - 1;
+        const newRow = clamp(Math.round((p.y - pitchRect.y) / CELL_H - 0.5), 0, ROWS - 1);
+        p.col = newCol; p.row = newRow;
+        const c = cellCenter(newCol, newRow);
+        p.x = c.x; p.y = c.y;
+      }
+    });
+  }
+
+  // ====== KIDS TURN ======
+  // (No AI — the player controls BOTH sides. Each turn alternates: dad, kids, dad, kids...)
+
+  // Winner determined by the actual scoreline (DAD wins if scoreP > scoreC, etc.)
+  // — `forcedWinner` overrides the score-based decision (e.g. for bomb-elimination).
+  let forcedWinner = null;
+
+  function fulltime() {
+    state = 'fulltime';
+    // Determine the outcome: DAD win, KIDS win, or DRAW.
+    // `forcedWinner` overrides the score-based decision (set by bomb-elimination).
+    let result;
+    if (forcedWinner === 'dad' || forcedWinner === 'kids') {
+      result = forcedWinner;
+    } else if (scoreP > scoreC) {
+      result = 'dad';
+    } else if (scoreC > scoreP) {
+      result = 'kids';
+    } else {
+      result = 'draw';
+    }
+    if (result === 'dad') {
+      overlay.querySelector('h1').textContent = 'DAD WINS! 🏆';
+      overlay.querySelector('h2').textContent = 'FULL TIME';
+    } else if (result === 'kids') {
+      overlay.querySelector('h1').textContent = 'KIDS WIN! 🎉';
+      overlay.querySelector('h2').textContent = 'FULL TIME';
+    } else {
+      overlay.querySelector('h1').textContent = 'IT\'S A DRAW! 🤝';
+      overlay.querySelector('h2').textContent = 'FULL TIME';
+    }
+    overlay.querySelector('p').innerHTML =
+      `<span style="font-size:32px;color:#60a5fa;font-weight:bold">DAD ${scoreP}</span>` +
+      `&nbsp;&nbsp;<span style="font-size:24px;color:#888">vs</span>&nbsp;&nbsp;` +
+      `<span style="font-size:32px;color:#fca5a5;font-weight:bold">KIDS ${scoreC}</span>` +
+      '<br><br><span class="heart">♥</span> Happy Father\'s Day — you\'re a legend either way! <span class="heart">♥</span>' +
+      '<br><br>(You controlled both teams — well done, ref!)';
+    startBtn.textContent = 'PLAY AGAIN';
+    overlay.classList.remove('hidden');
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+  function drawPitch() {
+    // Wipe the entire canvas first so explosions / shakes don't leave ghost pixels
+    ctx.fillStyle = '#0a1f0a';  // matches body background
+    ctx.fillRect(0, 0, W, H);
+    const stripeW = pitchRect.w / 12;
+    for (let i = 0; i < 12; i++) {
+      ctx.fillStyle = i % 2 === 0 ? '#1a6b3a' : '#166534';
+      ctx.fillRect(pitchRect.x + i * stripeW, pitchRect.y, stripeW, pitchRect.h);
+    }
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(pitchRect.x, pitchRect.y, pitchRect.w, pitchRect.h);
+
+    // halfway
+    ctx.beginPath();
+    ctx.moveTo(W / 2, pitchRect.y);
+    ctx.lineTo(W / 2, pitchRect.y + pitchRect.h);
+    ctx.stroke();
+
+    // center circle
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, 60, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // penalty boxes
+    const boxW = 70, boxH = 220;
+    ctx.strokeRect(pitchRect.x, H / 2 - boxH / 2, boxW, boxH);
+    ctx.strokeRect(pitchRect.x + pitchRect.w - boxW, H / 2 - boxH / 2, boxW, boxH);
+
+    // Goals
+    drawGoal(pitchRect.x, true);
+    drawGoal(pitchRect.x + pitchRect.w, false);
+  }
+
+  function drawGoal(xPos, isLeft) {
+    const off = isLeft ? -22 : 22;
+    // Goal mouth floor — grass (matches pitch, slightly darker for depth)
+    const goalW = Math.abs(off);
+    const stripeW = goalW / 4;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 === 0 ? '#155d31' : '#125a2d';
+      const sx = isLeft ? xPos + off + i * stripeW : xPos + i * stripeW;
+      ctx.fillRect(sx, goalTop, stripeW, GOAL_H);
+    }
+    // Goal frame outline (white posts + crossbar)
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(xPos, goalTop);
+    ctx.lineTo(xPos + off, goalTop);
+    ctx.lineTo(xPos + off, goalBot);
+    ctx.lineTo(xPos, goalBot);
+    ctx.closePath();
+    ctx.stroke();
+    // Net mesh over the grass (semi-transparent)
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1;
+    for (let i = goalW; i >= 0; i -= 5) {
+      ctx.beginPath();
+      ctx.moveTo(isLeft ? xPos + off + i : xPos + i, goalTop);
+      ctx.lineTo(isLeft ? xPos + off + i : xPos + i, goalBot);
+      ctx.stroke();
+    }
+    for (let j = 0; j <= GOAL_H; j += 10) {
+      ctx.beginPath();
+      ctx.moveTo(isLeft ? xPos + off + (j / GOAL_H) * goalW : xPos + (j / GOAL_H) * goalW, goalTop + j);
+      ctx.lineTo(xPos, goalTop + j);
+      ctx.stroke();
+    }
+  }
+
+  function drawPiece(p) {
+    // Robust: if a piece got into NaN/Infinity (rare, but can happen after
+    // a collision edge case), snap it back to its grid cell and skip drawing
+    // the radial-gradient dome (which crashes on non-finite coordinates).
+    if (!isFinite(p.x) || !isFinite(p.y)) {
+      const c = cellCenter(p.col, p.row);
+      p.x = c.x; p.y = c.y;
+      return;
+    }
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + PIECE_R * 0.6, PIECE_R * 0.85, PIECE_R * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // base — flat disc with team color
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PIECE_R, 0, Math.PI * 2);
+    ctx.fill();
+    // top dome
+    const grad = ctx.createRadialGradient(p.x - 4, p.y - 4, 2, p.x, p.y, PIECE_R);
+    grad.addColorStop(0, 'rgba(255,255,255,0.6)');
+    grad.addColorStop(0.4, p.color);
+    grad.addColorStop(1, p.color);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PIECE_R - 1, 0, Math.PI * 2);
+    ctx.fill();
+    // outline
+    ctx.strokeStyle = p.side === 'dad' ? '#1e40af' : '#991b1b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // role label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Trebuchet MS';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.role, p.x, p.y);
+
+    // crown for dad
+    if (p.side === 'dad') {
+      ctx.fillStyle = '#fbbf24';
+      ctx.strokeStyle = '#92400e';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const cx = p.x, cy = p.y - PIECE_R - 5;
+      ctx.moveTo(cx - 6, cy + 4);
+      ctx.lineTo(cx - 4, cy - 1);
+      ctx.lineTo(cx - 2, cy + 2);
+      ctx.lineTo(cx, cy - 3);
+      ctx.lineTo(cx + 2, cy + 2);
+      ctx.lineTo(cx + 4, cy - 1);
+      ctx.lineTo(cx + 6, cy + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    // selected indicator
+    if (selected === p) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, PIECE_R + 5, 0, Math.PI * 2);
+      ctx.stroke();
+      // pulsing ring
+      const t = performance.now() / 300;
+      const r = PIECE_R + 9 + Math.sin(t) * 2;
+      ctx.globalAlpha = 0.5 + Math.sin(t) * 0.3;
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawBall() {
+    // Ball stays hidden forever after Pac-Man eats it. Click PLAY AGAIN to reset.
+    if (ball.hiddenUntil) return;
+    // Robust against NaN/Infinity on the ball — same protection as drawPiece
+    if (!isFinite(ball.x) || !isFinite(ball.y)) {
+      ball.x = W / 2; ball.y = H / 2;
+      ball.vx = 0; ball.vy = 0;
+      return;
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath();
+    ctx.ellipse(ball.x, ball.y + BALL_R * 0.6, BALL_R * 0.9, BALL_R * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    const poly = [
+      [0, -BALL_R * 0.6], [BALL_R * 0.55, -BALL_R * 0.2],
+      [BALL_R * 0.35, BALL_R * 0.5], [-BALL_R * 0.35, BALL_R * 0.5],
+      [-BALL_R * 0.55, -BALL_R * 0.2],
+    ];
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    poly.forEach((pt, i) => {
+      const px = ball.x + pt[0];
+      const py = ball.y + pt[1];
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+    ctx.fill();
+
+    // Easter-egg armed indicator: pulsing white ring around the ball
+    if (eggMode && isFinite(ball.x) && isFinite(ball.y)) {
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.012);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + pulse * 0.4})`;
+      ctx.lineWidth = 2 + pulse * 2;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_R + 6 + pulse * 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_R + 9 + pulse * 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Pixelated explosion = a sprite-sheet of 10x10 colored squares flying outward
+  // from the boom-center, fading + falling with gravity.  Looks like a 16-bit
+  // sprite explosion.  Each pixel is a fixed size regardless of zoom.
+  function updateExplosions(dt) {
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      explosions[i].age += dt;
+      if (explosions[i].age >= explosions[i].total) {
+        explosions.splice(i, 1);
+      }
+    }
+  }
+
+  function updateWindGusts(dt) {
+    for (let i = windGusts.length - 1; i >= 0; i--) {
+      windGusts[i].age += dt;
+      if (windGusts[i].age >= windGusts[i].total) {
+        windGusts.splice(i, 1);
+      }
+    }
+  }
+
+  // Draw a pixelated wind-gust: dark "smoke" cloud burst + curved wind streaks
+  // + bright flash core. Pixelated edges throughout.
+  function drawWindGust(g) {
+    const t = g.age / g.total;   // 0..1
+    const PIX = 4;
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    // Dark smoke cloud backdrop (8 squashed squares expanding outward)
+    ctx.fillStyle = '#000';
+    for (let s = 0; s < 10; s++) {
+      const ang = (s / 10) * Math.PI * 2 + t * 0.8;
+      const r = (40 + t * 100) * (0.7 + Math.sin(s * 1.7 + t * 4) * 0.3);
+      const bx = Math.cos(ang) * r;
+      const by = Math.sin(ang) * r * 0.6;  // squashed
+      const bs = 20 + (1 - t) * 18;
+      ctx.fillRect(bx - bs / 2, by - bs / 2, bs, bs);
+    }
+    // Curved wind streaks (white-to-grey pixelated arcs)
+    ctx.globalAlpha = Math.max(0, 1 - t * 1.1);
+    for (let i = 0; i < 14; i++) {
+      const ang = (i / 14) * Math.PI * 2 + t * 1.2;
+      // Each streak is a curved arc — sample 4 points along it
+      for (let k = 0; k < 4; k++) {
+        const tt = (k / 3);
+        const rr = (10 + tt * 90) * (0.4 + t * 0.8);
+        const px = Math.cos(ang + tt * 0.6) * rr;
+        const py = Math.sin(ang + tt * 0.6) * rr * 0.5;
+        const shade = k < 2 ? '#fff' : (k < 3 ? '#d1d5db' : '#9ca3af');
+        ctx.fillStyle = shade;
+        ctx.fillRect(px - PIX / 2, py - PIX / 2, PIX, PIX);
+      }
+    }
+    // Bright white flash core (only at t < 0.35)
+    if (t < 0.35) {
+      ctx.globalAlpha = (1 - t / 0.35);
+      ctx.fillStyle = '#fff';
+      const fs = 22 + (1 - t / 0.35) * 30;
+      ctx.fillRect(-fs / 2, -fs / 2, fs, fs);
+      ctx.fillStyle = '#fde047';
+      const ys = 12 + (1 - t / 0.35) * 18;
+      ctx.fillRect(-ys / 2, -ys / 2, ys, ys);
+    }
+    ctx.restore();
+  }
+
+  // ===== EASTER EGG 3: PAC-MAN PORTAL INVASION =====
+  // Once spawned, a purple/pink/blue/green pixelated cloud portal opens at the
+  // LEFT EDGE OF ROW 0 — where Pac-Man is about to start eating. After the
+  // portal churns for 1.5 seconds, Pac-Man emerges directly into 'eating' phase
+  // (no falling) and chomps row by row, left → right, top → bottom. The eaten
+  // areas are stored as a list of rectangles that we subtract from the pitch
+  // fill at render time.
+
+  function updatePacman(dt) {
+    if (!pacman) return;
+
+    // Mouth animation: oscillate 0..1
+    pacman.mouthOpen = (pacman.mouthOpen + dt * 8) % (Math.PI * 2);
+
+    if (pacman.phase === 'portal') {
+      // Portal opens for 1.5 seconds, churning purple/pink/blue/green
+      pacman.portalAge += dt;
+      if (pacman.portalAge >= 1.5) {
+        // Pac-Man emerges directly into eating phase — no falling.
+        // Position is exactly where eating would start: left edge of row 0.
+        pacman.phase = 'eating';
+        pacman.rowIdx = 0;
+        pacman.x = pitchRect.x - CELL_W / 2;
+        pacman.y = pitchRect.y + pacman.rowIdx * CELL_H + CELL_H / 2;
+        // Tiny pop-in explosion at his emergence point
+        explosions.push({
+          x: pacman.x + CELL_W / 2,
+          y: pacman.y,
+          age: 0,
+          total: 0.5,
+          color: '#fde047',
+          side: 'pacman',
+        });
+        showToast('🟡 PAC-MAN EATS THE PITCH! 🟡', 1500);
+      }
+    } else if (pacman.phase === 'eating') {
+      // Gravity removed — Pac-Man is now spawned at the start position.
+      // Move right at a steady chomp-rate
+      const chompSpeed = 220;  // px/sec
+      pacman.x += chompSpeed * dt;
+      pacman.rowProgress = pacman.x - pitchRect.x;
+
+      // Eat the current cell if we've entered it
+      const cellX = Math.floor((pacman.x - pitchRect.x) / CELL_W);
+      if (cellX >= 0 && cellX < COLS) {
+        // Each step, "eat" a small rectangular chunk under Pac-Man
+        const eatRect = {
+          row: pacman.rowIdx,
+          x0: Math.max(pitchRect.x, pacman.x - CELL_W / 2 - 4),
+          x1: Math.min(pitchRect.x + pitchRect.w, pacman.x + CELL_W / 2 + 4),
+          y0: pitchRect.y + pacman.rowIdx * CELL_H,
+          y1: pitchRect.y + (pacman.rowIdx + 1) * CELL_H,
+        };
+        if (!pacman.eaten) pacman.eaten = [];
+        pacman.eaten.push(eatRect);
+        pacman.ateAny = true;
+      }
+
+      // Pac-Man eats pieces he touches: big pixelated mushroom-cloud explosion
+      // (smaller than a real mushroom cloud — just feels similar visually).
+      // Triggered when Pac-Man's center overlaps any piece.
+      // SUPPRESSED when a security breach is active (pieces are being ferried
+      // by mini Pac-Men, or lineup is settling). During breach/liningUp/exiting,
+      // Pac-Man passes through pieces without eating them.
+      const piecesLocked = pacman.phase === 'breach' || pacman.phase === 'liningUp' || pacman.phase === 'exiting';
+      const pacmanRadius = CELL_H * 0.42;
+      for (let i = pieces.length - 1; i >= 0; i--) {
+        const p = pieces[i];
+        const dx = p.x - pacman.x;
+        const dy = p.y - pacman.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < pacmanRadius + PIECE_R) {
+          if (piecesLocked) {
+            // During breach/liningUp/exiting — DO NOT eat. The piece is sacred
+            // until the mini Pac-Men are done with it.
+            continue;
+          }
+          // Big mushroom-cloud style explosion: 1 long-lived central explosion
+          // + a halo of pixel chunks that fly outward + a black backdrop cloud
+          const pieceColor = p.color || (p.side === 'dad' ? '#3b82f6' : '#ef4444');
+          // Mushroom cloud (centered, lasts 1.1s)
+          explosions.push({
+            x: p.x, y: p.y, age: 0, total: 1.1,
+            color: pieceColor, side: 'pacman',
+            mushroom: true,  // flag for renderer
+          });
+          // Halo of small exploding chunks (lifetime 0.8s)
+          for (let k = 0; k < 5; k++) {
+            explosions.push({
+              x: p.x, y: p.y, age: 0, total: 0.8,
+              color: pieceColor, side: 'pacman',
+              seed: i * 7 + k,  // unique seed per chunk
+            });
+          }
+          pieces.splice(i, 1);  // remove the piece permanently
+          screenShake = 0.5;
+        }
+      }
+
+      // BALL no longer gets eaten by Pac-Man — it bounces off him and keeps rolling.
+      // Pieces still get eaten (existing behavior above).
+
+      // SECURITY BREACH trigger comes ONLY from pieces/ball landing on the black
+      // (detected in tickFlick + tickBall + unoverlapPieces). When Pac-Man reaches
+      // a piece normally (no piece has been shot onto black), Pac-Man eats it
+      // normally as before. The `piecesLocked` flag above prevents eating during
+      // an active breach queue.
+
+      // Done with this row?
+      if (pacman.x >= pitchRect.x + pitchRect.w + CELL_W / 2) {
+        pacman.rowIdx++;
+        pacman.rowProgress = 0;
+        if (pacman.rowIdx >= ROWS) {
+          pacman.phase = 'nuke';
+          pacman.nukeAge = 0;
+          showToast('☢️ NUKE INCOMING ☢️', 1800);
+          screenShake = 0.8;
+        } else {
+          // Teleport with explosion: drop Pac-Man into a 'teleporting' state where
+          // he vanishes, a big pixelated explosion fires at the start of the next
+          // row, then he pops out 0.6s later ready to chomp again.
+          pacman.phase = 'teleporting';
+          pacman.teleAge = 0;
+          pacman.breachTriggered = false;  // reset for next row
+          // Snap Pac-Man down to the new row's vertical center
+          pacman.y = pitchRect.y + pacman.rowIdx * CELL_H + CELL_H / 2;
+          pacman.x = pitchRect.x - CELL_W / 2;  // start position for next row
+          // Burst position: at the LEFT EDGE of the new row
+          const burstX = pitchRect.x;
+          const burstY = pitchRect.y + pacman.rowIdx * CELL_H + CELL_H / 2;
+          explosions.push({
+            x: burstX,
+            y: burstY,
+            age: 0,
+            total: 0.6,
+            color: '#fde047',   // Pac-Man yellow
+            side: 'pacman',
+          });
+          screenShake = 0.3;
+        }
+      }
+    } else if (pacman.phase === 'teleporting') {
+      pacman.teleAge += dt;
+      if (pacman.teleAge >= 0.6) {
+        pacman.phase = 'eating';
+      }
+    } else if (pacman.phase === 'breach') {
+      // SECURITY BREACH ACTIVE: red flashing, sirens, mini Pac-Men ferry
+      // pieces + ball to a line-up spot in front of the stopped Pac-Man.
+      // After ~0.8s, transition to 'liningUp' to wait for everything to settle.
+      pacman.breachAge += dt;
+      // Pulse the red overlay
+      pacman.sirenIntensity = 0.5 + Math.sin(pacman.breachAge * 18) * 0.5;
+      if (pacman.breachAge >= 0.8 && !pacman.liningUpStarted) {
+        pacman.liningUpStarted = true;
+        pacman.phase = 'liningUp';
+        pacman.lineUpAge = 0;
+        // Compute the line-up positions:
+        //   - Default: in front of Pac-Man (60px ahead, same row).
+        //   - Edge case: Pac-Man is at the very right edge of the pitch
+        //     (about to teleport to the next row). Pieces/ball line up at
+        //     the NEXT ROW's spawn point — where Pac-Man will emerge from
+        //     the wall after teleport.
+        const queue = pacman.queue || [];
+        if (queue.length > 0) {
+          const rightEdge = pitchRect.x + pitchRect.w - CELL_W * 0.5;
+          const atRightEdge = pacman.x >= rightEdge;
+          let startX, baseY;
+          if (atRightEdge) {
+            // Pieces go to where Pac-Man will emerge on the NEXT row:
+            // left edge of (rowIdx + 1), vertical center of that row
+            const nextRow = Math.min(pacman.rowIdx + 1, ROWS - 1);
+            startX = pitchRect.x - CELL_W / 2 + 30;  // 30px in from left wall
+            baseY = pitchRect.y + nextRow * CELL_H + CELL_H / 2;
+          } else {
+            // Default: line up in front of Pac-Man
+            startX = pacman.x + 60;
+            baseY = pacman.y;
+          }
+          const gap = 50;  // gap between adjacent objects
+          queue.forEach((q, idx) => {
+            q.targetX = startX + idx * gap;
+            q.targetY = baseY;
+            q.startX = q.obj.x;
+            q.startY = q.obj.y;
+            q.carryAge = 0;
+          });
+        }
+      }
+    } else if (pacman.phase === 'liningUp') {
+      // Mini Pac-Men carry each object to its target slot in front of Pac-Man.
+      // After all objects are within ~3px of their target, sirens stop and
+      // Pac-Man resumes eating.
+      pacman.lineUpAge += dt;
+      const queue = pacman.queue || [];
+      let allArrived = true;
+      for (const q of queue) {
+        q.carryAge += dt;
+        // Lerp position with easing — first half fast, second half slow
+        const t = Math.min(1, q.carryAge / 0.7);  // 0.7s to arrive
+        const eased = t * (2 - t);  // ease-out
+        q.obj.x = q.startX + (q.targetX - q.startX) * eased;
+        q.obj.y = q.startY + (q.targetY - q.startY) * eased;
+        // Stop the piece's physics while being carried
+        q.obj.vx = 0;
+        q.obj.vy = 0;
+        if (t < 1) allArrived = false;
+      }
+      if (allArrived && pacman.lineUpAge >= 1.0) {
+        // Line-up complete — sirens stop, mini Pac-Men fly away through a portal.
+        // 3-second exit animation: each mini Pac-Man flies upward into a pixelated
+        // portal that opens above them, then disappears.
+        stopSiren();
+        pacman.phase = 'exiting';
+        pacman.exitAge = 0;
+        pacman.breachTriggered = false;  // reset so it can fire again next time
+        // Give each mini Pac-Man an exit target: portal at (its X, -60) — off-screen
+        for (const q of pacman.queue) {
+          q.exitStartX = q.obj.x;
+          q.exitStartY = q.obj.y - 22;  // current mini Pac-Man position
+          q.exitTargetX = q.obj.x;
+          q.exitTargetY = -60;  // fly off the top of the canvas
+        }
+      }
+    } else if (pacman.phase === 'exiting') {
+      // Mini Pac-Men fly upward into a portal at the top of the canvas.
+      // 3 seconds total: 0-1s portal opens + fly up, 1-3s portal churns and closes.
+      pacman.exitAge += dt;
+      const flyDuration = 1.0;  // mini Pac-Men fly up in 1 second
+      const totalDuration = 3.0;
+      // Lerp each mini Pac-Man upward toward its exit target
+      for (const q of pacman.queue || []) {
+        if (pacman.exitAge < flyDuration) {
+          const t = pacman.exitAge / flyDuration;
+          const eased = t * (2 - t);  // ease-out
+          // Position is interpolated (we don't write back to q.obj.x/y, just visual)
+        }
+      }
+      // After 3 seconds total, transition back to eating
+      if (pacman.exitAge >= totalDuration) {
+        pacman.phase = 'eating';
+        pacman.queue = [];
+        showToast('✅ SECURITY RESTORED', 1000);
+      }
+    } else if (pacman.phase === 'nuke') {
+      // Phase 1: nuke falls from top to center of pitch (~1.2s)
+      // Phase 2: massive pixel-explosion fills canvas (~1.0s)
+      // Phase 3: hacker-rain takes over (~3.5s)
+      pacman.nukeAge += dt;
+      // Animate nukeY from -50 → pitch center over 1.2s
+      pacman.nukeY = -50 + (pacman.nukeAge / 1.2) * (pitchRect.y + pitchRect.h / 2 + 50);
+      if (pacman.nukeY > pitchRect.y + pitchRect.h / 2) pacman.nukeY = pitchRect.y + pitchRect.h / 2;
+      if (pacman.nukeAge < 1.2) {
+        // Falling phase: shake the screen heavily
+        screenShake = Math.max(screenShake, 0.4 + Math.sin(pacman.nukeAge * 30) * 0.4);
+        // Spawn random pixel chunks along the descent for visual chaos
+        if (Math.random() < 0.7) {
+          explosions.push({
+            x: W / 2 + (Math.random() - 0.5) * 60,
+            y: pacman.nukeY,
+            age: 0,
+            total: 0.4,
+            color: ['#fbbf24', '#fde047', '#f97316', '#dc2626'][Math.floor(Math.random() * 4)],
+            side: 'pacman',
+            seed: Math.floor(Math.random() * 9999),
+          });
+        }
+      } else if (pacman.nukeAge < 2.2) {
+        // BOOM phase: fire HUGE mushroom cloud at center, multiple shockwaves
+        if (pacman.nukeAge < 1.3) {
+          // Initial blast — fire multiple explosions at once
+          pacman.nukeBoomFired = true;
+          // Central mushroom cloud (big!)
+          explosions.push({
+            x: W / 2, y: pitchRect.y + pitchRect.h / 2,
+            age: 0, total: 2.0, color: '#fde047', side: 'pacman',
+            mushroom: true,
+          });
+          // 8 surrounding fireballs
+          for (let i = 0; i < 8; i++) {
+            const ang = (i / 8) * Math.PI * 2;
+            const r = 80 + Math.random() * 80;
+            explosions.push({
+              x: W / 2 + Math.cos(ang) * r,
+              y: pitchRect.y + pitchRect.h / 2 + Math.sin(ang) * r,
+              age: 0, total: 1.4,
+              color: ['#dc2626', '#f97316', '#fbbf24', '#fde047'][i % 4],
+              side: 'pacman',
+              mushroom: true,
+            });
+          }
+          // Screen-wide shake
+          screenShake = 1.2;
+        }
+        // Continuous shockwave pixels flying everywhere during boom
+        if (Math.random() < 0.9) {
+          const ang = Math.random() * Math.PI * 2;
+          const dist = 30 + Math.random() * 100;
+          explosions.push({
+            x: W / 2 + Math.cos(ang) * dist,
+            y: pitchRect.y + pitchRect.h / 2 + Math.sin(ang) * dist,
+            age: 0, total: 1.0 + Math.random() * 0.6,
+            color: ['#fff', '#fde047', '#f97316', '#dc2626', '#fbbf24'][Math.floor(Math.random() * 5)],
+            side: 'pacman',
+            seed: Math.floor(Math.random() * 99999),
+          });
+        }
+      } else if (pacman.nukeAge < 5.7) {
+        // Hacker-rain phase: glyphs cascade down the screen
+        if (pacman.nukeAge < 2.25) {
+          // First transition: seed the rain with a fresh burst
+          pacman.phase = 'hacked';
+          pacman.hackedAge = 0;
+          // Seed ~80 columns of falling glyphs
+          hackerRain = [];
+          for (let col = 0; col < 50; col++) {
+            hackerRain.push({
+              col: Math.floor(Math.random() * 50),
+              y: -Math.random() * 600,
+              speed: 200 + Math.random() * 500,
+              glyph: hackerRandomGlyph(),
+              bright: Math.random() < 0.15,  // head glyph is brighter
+              length: 8 + Math.floor(Math.random() * 18),
+              trail: [],
+            });
+          }
+        }
+      } else {
+        pacman.phase = 'done';
+        showToast('💀 PITCH OBLITERATED — CLICK PLAY AGAIN 💀', 3000);
+      }
+    } else if (pacman.phase === 'hacked') {
+      pacman.hackedAge += dt;
+      // Update each glyph column — fall, regenerate characters, build trail
+      for (const g of hackerRain) {
+        g.y += g.speed * dt;
+        // Occasionally change the head glyph for that "decryption" feel
+        if (Math.random() < 0.3) g.glyph = hackerRandomGlyph();
+        // Trail follows behind (lagging positions for fading effect)
+        g.trail.unshift({ y: g.y, glyph: g.glyph, bright: g.bright });
+        if (g.trail.length > g.length) g.trail.pop();
+        // Reset when off bottom
+        if (g.y > H + 50) {
+          g.y = -Math.random() * 200;
+          g.speed = 200 + Math.random() * 500;
+          g.glyph = hackerRandomGlyph();
+        }
+      }
+      // After 3.4 seconds of hacker-rain, transition to done
+      if (pacman.hackedAge > 3.4) {
+        pacman.phase = 'done';
+        showToast('💀 PITCH OBLITERATED — CLICK PLAY AGAIN 💀', 3000);
+      }
+    }
+  }
+
+  // Random hacker-rain glyph generator
+  function hackerRandomGlyph() {
+    const chars = '01αβγδ<>{}[]|/\\$#@&%*=?!^~+-:;ABCDEFKQRXZ';
+    return chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  // SECURITY BREACH triggered when the player flicks a piece out of Pac-Man's way.
+  // Pac-Man stops, sirens wail, all pieces + ball get queued up to be carried
+  // by mini Pac-Men to a line-up spot directly in front of the stopped Pac-Man.
+  function triggerSecurityBreach(triggerPiece = null) {
+    pacman.phase = 'breach';
+    pacman.breachAge = 0;
+    pacman.x = pacman.x;  // freeze Pac-Man's x here
+    pacman.queue = [];
+    // Cancel any in-flight flick animation so pieces stop moving immediately
+    flickAnim = null;
+    // Queue up the piece that triggered the breach (guaranteed).
+    // Also queue any other pieces currently ON THE BLACK.
+    // The ball stays where it is — it just bounces off Pac-Man, no mini Pac-Men.
+    const triggerObj = triggerPiece ? (triggerPiece.piece || triggerPiece) : null;
+    if (triggerObj && pieces.includes(triggerObj)) {
+      triggerObj.vx = 0; triggerObj.vy = 0;
+      pacman.queue.push({ obj: triggerObj, type: 'piece' });
+    }
+    if (pacman.eaten && pacman.eaten.length > 0) {
+      for (const p of pieces) {
+        if (pacman.queue.some(q => q.obj === p)) continue;  // already queued
+        let onBlack = false;
+        const pieceRadius = PIECE_R;
+        for (const r of pacman.eaten) {
+          const cx = Math.max(r.x0, Math.min(p.x, r.x1));
+          const cy = Math.max(r.y0, Math.min(p.y, r.y1));
+          const dx = p.x - cx;
+          const dy = p.y - cy;
+          const dist = Math.hypot(dx, dy);
+          if (dist < pieceRadius) { onBlack = true; break; }
+        }
+        p.vx = 0; p.vy = 0;
+        if (onBlack) {
+          pacman.queue.push({ obj: p, type: 'piece' });
+        }
+      }
+    } else {
+      // No black yet — queue everything as a fallback
+      for (const p of pieces) {
+        if (pacman.queue.some(q => q.obj === p)) continue;
+        p.vx = 0; p.vy = 0;
+        pacman.queue.push({ obj: p, type: 'piece' });
+      }
+    }
+    startSiren();
+    showToast('🚨 SECURITY BREACH 🚨', 1500);
+    screenShake = 0.6;
+  }
+
+  // Draw the eaten-pitch overlay (transparent black holes where Pac-Man ate).
+  function drawEatenHoles() {
+    if (!pacman || !pacman.eaten) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.96)';
+    for (const r of pacman.eaten) {
+      ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+    }
+    ctx.restore();
+  }
+
+  // Draw Pac-Man + the pixelated portal above him while he's still in 'portal' phase.
+  function drawPacman() {
+    if (!pacman) return;
+    if (pacman.phase === 'done') return;
+    // Hide Pac-Man while teleporting — the explosion is happening instead
+    if (pacman.phase === 'teleporting') return;
+
+    const cx = pacman.x;
+    const cy = pacman.y;
+    const radius = CELL_H * 0.42;
+
+    // Portal: purpley-pink-blue-green cloud at the LEFT EDGE OF ROW 0
+    // (where Pac-Man is about to start eating). Chunky pixelated squares churning
+    // around in a swirl, with a black backdrop ring.
+    if (pacman.phase === 'portal') {
+      const t = pacman.portalAge;
+      const a = pacman.portalAge / 1.5;  // 0..1 over the portal lifespan
+      // Eating-start position: left edge of row 0, vertical center
+      const portalCx = pitchRect.x;
+      const portalCy = pitchRect.y + CELL_H / 2;
+      const radiusPortal = 30 + a * 6;
+
+      ctx.save();
+      ctx.translate(portalCx, portalCy);
+
+      // Chunky black backdrop ring (gives it that pixel-art portal look)
+      ctx.fillStyle = '#000';
+      ctx.fillRect(-radiusPortal - 8, -radiusPortal - 8, (radiusPortal + 8) * 2, (radiusPortal + 8) * 2);
+
+      // 12 chunky pixels orbiting in a swirling cloud pattern
+      // 4 color sets: purple / pink / blue / green, each gets 3 pixels
+      const palette = [
+        '#a855f7', '#c084fc', '#7e22ce',  // purples
+        '#ec4899', '#f472b6', '#be185d',  // pinks
+        '#3b82f6', '#60a5fa', '#1e3a8a',  // blues
+        '#22c55e', '#4ade80', '#14532d',  // greens
+      ];
+      const N = palette.length;
+      for (let i = 0; i < N; i++) {
+        const ang = t * 3 + (i / N) * Math.PI * 2;
+        // Vary radius per pixel so the cloud has texture
+        const wobble = Math.sin(t * 6 + i) * 0.25;
+        const r = radiusPortal * (0.45 + 0.35 * Math.abs(Math.sin(i * 1.3)) + wobble * 0.1);
+        const px = Math.cos(ang) * r;
+        const py = Math.sin(ang) * r;
+        const size = 8 + Math.sin(t * 4 + i * 0.7) * 2;  // each pixel pulses
+        ctx.fillStyle = palette[i];
+        ctx.fillRect(px - size / 2, py - size / 2, size, size);
+      }
+
+      // Inner white/yellow core that grows as the portal opens
+      const coreR = 6 + a * 6;
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(-coreR / 2, -coreR / 2, coreR, coreR);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(-coreR / 4, -coreR / 4, coreR / 2, coreR / 2);
+
+      // Bright sparkles around the perimeter (random sparkle dots)
+      for (let k = 0; k < 6; k++) {
+        const sang = t * 4 + k * 1.7;
+        const sr = radiusPortal * (0.85 + Math.sin(t * 5 + k) * 0.15);
+        const sx = Math.cos(sang) * sr;
+        const sy = Math.sin(sang) * sr;
+        // Twinkle: only show if sin > 0
+        if (Math.sin(t * 9 + k * 2) > 0) {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(sx - 2, sy - 2, 4, 4);
+        }
+      }
+
+      ctx.restore();
+      return;  // don't draw Pac-Man yet
+    }
+
+    // Pac-Man body — chunky pixel-art chomper
+    // Mouth oscillates between open (~60°) and closed (0°)
+    const mouthAngle = (Math.sin(pacman.mouthOpen) * 0.5 + 0.5) * 0.9;  // 0..0.9 rad
+    ctx.save();
+    ctx.translate(cx, cy);
+    // Body filled circle (yellow)
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, mouthAngle, Math.PI * 2 - mouthAngle);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+    // Outline (chunky black)
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Eye
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(-radius * 0.25, -radius * 0.35, radius * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+    // Highlight pixel
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-radius * 0.32, -radius * 0.42, 3, 3);
+    ctx.restore();
+  }
+
+  // Draw the falling nuke — a chunky pixel-art bomb icon with a fire trail
+  function drawNuke() {
+    if (!pacman || pacman.phase !== 'nuke') return;
+    const x = W / 2;
+    const y = pacman.nukeY;
+    ctx.save();
+    ctx.translate(x, y);
+    // Nuke body — capsule shape
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(-14, -16, 28, 28);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(-14, -16, 28, 6);
+    ctx.fillStyle = '#4b5563';
+    ctx.fillRect(-12, -10, 24, 4);
+    // Top fin (the cap)
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillRect(-6, -22, 12, 6);
+    // Hazard symbol (yellow triangle + trefoil)
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(-7, -8, 14, 10);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-2, -4, 4, 6);
+    ctx.fillRect(-4, -1, 8, 2);
+    ctx.fillRect(-3, 1, 2, 2);
+    ctx.fillRect(1, 1, 2, 2);
+    // Fire trail (red/orange squares dropping down)
+    for (let i = 1; i <= 8; i++) {
+      const tt = i / 8;
+      const fy = 14 + i * 4;
+      const fx = Math.sin(i * 0.7) * 3;
+      ctx.fillStyle = i % 2 === 0 ? '#dc2626' : '#fbbf24';
+      const fsize = 6 - tt * 3;
+      ctx.fillRect(fx - fsize / 2, fy - fsize / 2, fsize, fsize);
+    }
+    ctx.restore();
+  }
+
+  // Draw the hacker-rain: green/white matrix-style glyphs falling from top
+  // with fading trails behind them
+  function drawHackerRain() {
+    if (!pacman || pacman.phase !== 'hacked') return;
+    if (hackerRain.length === 0) return;
+    const COL_W = W / 50;  // glyphs distributed across 50 columns
+    ctx.save();
+    ctx.font = 'bold 16px ui-monospace, "Courier New", monospace';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'center';
+    for (const g of hackerRain) {
+      const x = (g.col + 0.5) * COL_W;
+      // Draw trail (fading behind the head)
+      for (let i = g.trail.length - 1; i >= 0; i--) {
+        const t = g.trail[i];
+        const fade = 1 - (i / g.trail.length);
+        const alpha = fade * 0.9;
+        const color = t.bright ? '#fff' : '#4ade80';
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha;
+        ctx.fillText(t.glyph, x, t.y);
+      }
+      // Draw head glyph (brightest)
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = g.bright ? '#fff' : '#22c55e';
+      ctx.fillText(g.glyph, x, g.y);
+    }
+    ctx.restore();
+  }
+
+  // Draw the security breach UI: red flashing border + SECURITY BREACH text + mini Pac-Men
+  function drawSecurityBreach() {
+    if (!pacman || (pacman.phase !== 'breach' && pacman.phase !== 'liningUp' && pacman.phase !== 'exiting')) return;
+    const intensity = pacman.sirenIntensity !== undefined
+      ? pacman.sirenIntensity
+      : 0.5 + Math.sin((pacman.breachAge || 0) * 18) * 0.5;
+    // During exiting phase, fade out the red overlay gradually
+    let overlayAlpha = 0.08 + intensity * 0.12;
+    if (pacman.phase === 'exiting') {
+      overlayAlpha = Math.max(0, overlayAlpha * (1 - (pacman.exitAge || 0) / 3.0));
+    }
+    // Red full-screen pulsing overlay (subtle)
+    ctx.fillStyle = `rgba(220, 38, 38, ${overlayAlpha})`;
+    ctx.fillRect(0, 0, W, H);
+    // SECURITY BREACH text at top center
+    ctx.save();
+    ctx.font = 'bold 36px ui-monospace, "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + intensity * 0.2})`;
+    ctx.fillText('🚨 SECURITY BREACH 🚨', W / 2, 50);
+    ctx.font = 'bold 14px ui-monospace, "Courier New", monospace';
+    ctx.fillStyle = `rgba(254, 240, 138, ${0.6 + intensity * 0.4})`;
+    ctx.fillText('MINI PAC-MEN SECURING OBJECTS', W / 2, 78);
+    ctx.restore();
+    // During EXITING phase: draw the pixelated exit portal above each piece,
+    // and have the mini Pac-Men fly UP into it.
+    if (pacman.phase === 'exiting') {
+      const exitAge = pacman.exitAge || 0;
+      const flyDuration = 1.0;
+      for (const q of pacman.queue || []) {
+        // Mini Pac-Man flies from start (above its piece) upward into a portal at (X, -60)
+        const t = Math.min(1, exitAge / flyDuration);
+        const eased = t * (2 - t);  // ease-out
+        const miniX = q.exitStartX;
+        const miniY = q.exitStartY + (q.exitTargetY - q.exitStartY) * eased;
+        // Portal position: at the mini Pac-Man's TARGET X, just above where it's heading
+        const portalX = q.exitTargetX;
+        const portalY = Math.max(20, q.exitTargetY + 60);  // 60px below target so it's on-screen
+        // Draw the portal (only after 0.3s so it appears as mini Pac-Man approaches)
+        if (exitAge > 0.3) {
+          drawExitPortal(portalX, portalY, (exitAge - 0.3) / 0.7);
+        }
+        // Draw the mini Pac-Man (with shrinking scale as it gets sucked in)
+        const scale = 1 - eased * 0.5;  // shrink from 1.0 to 0.5
+        drawMiniPacmanScaled(miniX, miniY, scale);
+      }
+      // "ALL CLEAR" toast after 1.5s
+      if (exitAge >= 1.5 && exitAge < 1.7) {
+        showToast('✅ ALL CLEAR', 800);
+      }
+    } else {
+      // Mini Pac-Men sprites carrying each queued object (breach + liningUp phases)
+      if (pacman.queue) {
+        for (const q of pacman.queue) {
+          const objX = q.obj.x;
+          const objY = q.obj.y;
+          // Mini Pac-Man above the object (slightly leading the carry direction)
+          let miniX = objX;
+          let miniY = objY - 22;
+          if (q.targetX !== undefined && q.startX !== undefined) {
+            // Lerp between start and target for the mini Pac-Man position (slightly ahead)
+            const t = q.carryAge !== undefined ? Math.min(1, q.carryAge / 0.7) : 0;
+            miniX = q.startX + (q.targetX - q.startX) * t;
+            miniY = q.startY + (q.targetY - q.startY) * t - 22;
+          }
+          drawMiniPacman(miniX, miniY);
+        }
+      }
+    }
+  }
+
+  // Draw an exit portal — similar to the entry portal but smaller and fading
+  function drawExitPortal(cx, cy, churn) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    // Black backdrop ring
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(0, 0, 28, 0, Math.PI * 2);
+    ctx.fill();
+    // 12 orbiting pixels (same palette as entry portal)
+    const palette = ['#a855f7', '#c084fc', '#7e22ce', '#ec4899', '#f472b6', '#be185d',
+                     '#3b82f6', '#60a5fa', '#1e3a8a', '#22c55e', '#4ade80', '#14532d'];
+    const baseRadius = 22;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 + churn * 4;
+      const wobble = Math.sin(churn * 6 + i) * 4;
+      const radius = baseRadius + wobble;
+      const px = Math.cos(angle) * radius;
+      const py = Math.sin(angle) * radius;
+      const size = 5 + Math.sin(churn * 10 + i) * 2;
+      ctx.fillStyle = palette[i];
+      ctx.fillRect(px - size / 2, py - size / 2, size, size);
+    }
+    // White-yellow core
+    const coreSize = 8 + churn * 10;
+    ctx.fillStyle = '#fef9c3';
+    ctx.beginPath();
+    ctx.arc(0, 0, coreSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw a mini Pac-Man with a custom scale (for shrinking during exit)
+  function drawMiniPacmanScaled(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    // Body
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // Mouth wedge
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(8, -4);
+    ctx.lineTo(8, 4);
+    ctx.closePath();
+    ctx.fill();
+    // Eye
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-2, -4, 2, 2);
+    ctx.restore();
+  }
+
+  // Draw a tiny pixelated Pac-Man sprite at (x, y)
+  function drawMiniPacman(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    // Body — 10px radius yellow circle
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // Mouth — small wedge cut out
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(8, -4);
+    ctx.lineTo(8, 4);
+    ctx.closePath();
+    ctx.fill();
+    // Eye
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-2, -4, 2, 2);
+    ctx.restore();
+  }
+
+  // Draw the reset button — only visible after the Pac-Man nuke+hacker finale
+  function drawResetButton() {
+    if (!pacman || pacman.phase !== 'done' || !pacman.resetBtn) return;
+    const btn = pacman.resetBtn;
+    const t = performance.now() / 1000;
+    // Pulsing border effect
+    const pulse = 0.5 + Math.sin(t * 4) * 0.5;
+    ctx.save();
+    // Black backdrop with chunky border
+    ctx.fillStyle = 'rgba(0,0,0,0.92)';
+    ctx.fillRect(btn.x - 4, btn.y - 4, btn.w + 8, btn.h + 8);
+    // Green pulsing border
+    const borderAlpha = 0.6 + pulse * 0.4;
+    ctx.fillStyle = `rgba(34, 197, 94, ${borderAlpha})`;
+    ctx.fillRect(btn.x - 4, btn.y - 4, btn.w + 8, 4);  // top
+    ctx.fillRect(btn.x - 4, btn.y + btn.h, btn.w + 8, 4);  // bottom
+    ctx.fillRect(btn.x - 4, btn.y - 4, 4, btn.h + 8);  // left
+    ctx.fillRect(btn.x + btn.w, btn.y - 4, 4, btn.h + 8);  // right
+    // Inner background
+    ctx.fillStyle = 'rgba(20, 83, 45, 0.95)';
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+    // Label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px ui-monospace, "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('↻ RESET MATCH', btn.x + btn.w / 2, btn.y + btn.h / 2 - 8);
+    ctx.font = 'bold 12px ui-monospace, "Courier New", monospace';
+    ctx.fillStyle = '#86efac';
+    ctx.fillText('CLICK TO RESTART', btn.x + btn.w / 2, btn.y + btn.h / 2 + 14);
+    // Cursor hint: hand cursor over button
+    canvas.style.cursor = 'pointer';
+    ctx.restore();
+  }
+
+  function drawExplosion(ex) {
+    const t = ex.age / ex.total;   // 0 → 1
+
+    // Mushroom-cloud variant: chunky black backdrop cloud + billowing top +
+    // orange/red pixel chunks rising up. Smaller than a real mushroom cloud.
+    if (ex.mushroom) {
+      const PIX = 4;
+      ctx.save();
+      // Black backdrop cloud (the "smoke" base)
+      const baseR = 30 + t * 60;  // expanding base
+      ctx.fillStyle = '#000';
+      // Layer multiple black squares for a fluffy outline
+      for (let s = 0; s < 8; s++) {
+        const ang = (s / 8) * Math.PI * 2 + t * 0.5;
+        const r = baseR * (0.85 + Math.sin(s * 1.3) * 0.15);
+        const bx = ex.x + Math.cos(ang) * r;
+        const by = ex.y + Math.sin(ang) * r * 0.7;  // squashed (wider than tall)
+        const bs = 18 + (1 - t) * 12;
+        ctx.fillRect(bx - bs / 2, by - bs / 2, bs, bs);
+      }
+      // Solid black backdrop core
+      const coreBack = 30 + t * 40;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(ex.x - coreBack / 2, ex.y - coreBack / 4, coreBack, coreBack / 2);
+      // Mushroom cap (billowing top)
+      const capR = 20 + t * 50;
+      const capY = ex.y - 20 - t * 30;  // rises upward over time
+      // Layer 6 dark gray caps
+      const capColors = ['#374151', '#4b5563', '#6b7280', '#1f2937'];
+      for (let c = 0; c < 6; c++) {
+        const cang = (c / 6) * Math.PI * 2 + t * 0.7;
+        const cr = capR * (0.6 + Math.sin(c * 1.7 + t * 2) * 0.3);
+        const cx = ex.x + Math.cos(cang) * cr;
+        const cy = capY + Math.sin(cang) * cr * 0.6;
+        ctx.fillStyle = capColors[c % capColors.length];
+        const cs = 16 + Math.sin(c * 0.9 + t * 3) * 4;
+        ctx.fillRect(cx - cs / 2, cy - cs / 2, cs, cs);
+      }
+      // Orange/red rising pixel chunks (the "fire" of the cloud)
+      ctx.globalAlpha = Math.max(0, 1 - t * 1.4);
+      const fireColors = ['#dc2626', '#ef4444', '#f97316', '#fbbf24', '#fde047'];
+      for (let i = 0; i < 12; i++) {
+        const seed = (ex.seed || 0) * 13 + i;
+        const function_rng = ((seed * (i + 1) * 9301 + 49297) % 233280) / 233280;
+        const ang = function_rng * Math.PI * 2;
+        const riseDist = (10 + function_rng * 25) * t;
+        const px = ex.x + Math.cos(ang) * (5 + function_rng * 20);
+        const py = ex.y + Math.sin(ang) * 5 - riseDist;  // rises
+        const ps = 4 + function_rng * 4;
+        ctx.fillStyle = fireColors[i % fireColors.length];
+        ctx.fillRect(px - ps / 2, py - ps / 2, ps, ps);
+      }
+      // Central white-yellow flash (only at t<0.4)
+      if (t < 0.4) {
+        ctx.globalAlpha = (1 - t / 0.4);
+        ctx.fillStyle = '#fff';
+        const fs = 20 + (1 - t / 0.4) * 30;
+        ctx.fillRect(ex.x - fs / 2, ex.y - fs / 2, fs, fs);
+        ctx.fillStyle = '#fde047';
+        const ys = 12 + (1 - t / 0.4) * 20;
+        ctx.fillRect(ex.x - ys / 2, ex.y - ys / 2, ys, ys);
+      }
+      ctx.restore();
+      return;
+    }
+
+    // Halo chunk variant: a small radial burst of pieces using a unique seed
+    if (ex.seed !== undefined) {
+      const PIX = 4;
+      ctx.save();
+      ctx.globalAlpha = 1 - t;
+      const chunkSeed = ex.seed;
+      const chunkColors = ['#fff', '#fde047', ex.color || '#fbbf24', '#000', '#dc2626'];
+      for (let i = 0; i < 8; i++) {
+        const r = ((chunkSeed * (i + 1) * 9301 + 49297) % 233280) / 233280;
+        const ang = r * Math.PI * 2;
+        const dist = (12 + r * 25) * t;
+        const px = ex.x + Math.cos(ang) * dist;
+        const py = ex.y + Math.sin(ang) * dist + t * 40;
+        const ps = 3 + r * 3;
+        ctx.fillStyle = chunkColors[i % chunkColors.length];
+        ctx.fillRect(px - ps / 2, py - ps / 2, ps, ps);
+      }
+      ctx.restore();
+      return;
+    }
+
+    // Standard explosion (boom mode)
+    // Each explosion emits ~14 "pixels".  Deterministic — same shape every time
+    // for the same piece (use side+role-derived seed) so the same piece always
+    // looks like the same boom.  Use simple hash from x,y so it's stable.
+    const seed = Math.abs(((ex.x | 0) * 31 + (ex.y | 0) * 17) | 0);
+    function rng(i) {  // cheap deterministic rand in [0,1)
+      return ((seed * (i + 1) * 9301 + 49297) % 233280) / 233280;
+    }
+    const PIX = 4;  // pixel size in canvas px
+    const colors = ex.side === 'dad'
+      ? ['#3b82f6', '#1e40af', '#93c5fd', '#fff', '#000', '#fbbf24']
+      : ex.side === 'pacman'
+      ? ['#fde047', '#fbbf24', '#f59e0b', '#fff', '#000', '#dc2626']
+      : ['#ef4444', '#7f1d1d', '#fca5a5', '#fff', '#000', '#fbbf24'];
+    ctx.save();
+    // outer expanding ring (chunky pixel-art)
+    const ringR = 8 + t * 70;
+    ctx.fillStyle = '#fbbf24';
+    for (let a = 0; a < 16; a++) {
+      const ang = (a / 16) * Math.PI * 2;
+      const px = ex.x + Math.cos(ang) * ringR;
+      const py = ex.y + Math.sin(ang) * ringR;
+      ctx.fillRect(px - PIX/2, py - PIX/2, PIX, PIX);
+    }
+    // fading inner core
+    ctx.globalAlpha = 1 - t;
+    for (let i = 0; i < 14; i++) {
+      const ang = rng(i * 2) * Math.PI * 2;
+      const dist = (8 + rng(i * 2 + 1) * 30) * (0.3 + t * 0.9);
+      const px = ex.x + Math.cos(ang) * dist;
+      const py = ex.y + Math.sin(ang) * dist + t * 30; // gravity
+      const c = colors[Math.floor(rng(i * 3 + 1) * colors.length)];
+      ctx.fillStyle = c;
+      ctx.fillRect(px - PIX/2, py - PIX/2, PIX, PIX);
+    }
+    // central flash block at t<0.3 (white square that fades fast)
+    if (t < 0.3) {
+      const size = PIX * (3 + (1 - t / 0.3) * 8);
+      ctx.globalAlpha = (1 - t / 0.3);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ex.x - size/2, ex.y - size/2, size, size);
+    }
+    ctx.restore();
+  }
+
+  function drawAimIndicator() {
+    if (phase !== 'aim' || !selected) return;
+    const p = selected;
+    if (!drag) return;
+    const dx = drag.curX - drag.startX;
+    const dy = drag.curY - drag.startY;
+    const dragLen = Math.hypot(dx, dy);
+    if (dragLen < 4) return;  // don't draw until pulled back a bit
+    // Drag-back line (yellow, dashed): from piece to drag start point
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(drag.startX, drag.startY);
+    ctx.stroke();
+    // Power bar at start point — drag length up to MAX_DRAG (500px) = full power
+    const powerFrac = clamp(dragLen, 0, 500) / 500;
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(drag.startX - 64, drag.startY - 22, 128, 6);
+    // color from green (low) → yellow (med) → red (max)
+    const r = Math.round(74 + powerFrac * (239 - 74));
+    const g = Math.round(222 + powerFrac * (68 - 222));
+    const b = Math.round(128 + powerFrac * (68 - 128));
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    // Wider bar (96px) so the 300px range reads visually
+    ctx.fillRect(drag.startX - 48, drag.startY - 22, 96 * powerFrac, 6);
+    // Flick arrow (opposite of drag, where the piece will go)
+    const flickRad = Math.atan2(-dy, -dx);
+    const flickLen = 60 + powerFrac * 140;
+    const fx = p.x + Math.cos(flickRad) * flickLen;
+    const fy = p.y + Math.sin(flickRad) * flickLen;
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(fx, fy);
+    ctx.stroke();
+    // arrowhead
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx - Math.cos(flickRad - 0.4) * 14, fy - Math.sin(flickRad - 0.4) * 14);
+    ctx.lineTo(fx - Math.cos(flickRad + 0.4) * 14, fy - Math.sin(flickRad + 0.4) * 14);
+    ctx.closePath();
+    ctx.fill();
+    // power ring around piece
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PIECE_R + 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function drawGoalFlash() {
+    if (goalCelebrate <= 0) return;
+    const FLASH_DURATION = 3.0;  // yellow flash lasts 3 seconds total
+    // Use wall-clock dt so the timing is correct regardless of FPS
+    const dt = (performance.now() - (drawGoalFlash._last || performance.now())) / 1000;
+    drawGoalFlash._last = performance.now();
+    goalCelebrate -= dt;
+    const t = Math.max(0, Math.min(1, goalCelebrate / FLASH_DURATION));
+    ctx.fillStyle = `rgba(250, 204, 21, ${t * 0.7})`;  // bright gold-yellow at 70% peak alpha
+    // Only fill the pitch rectangle itself — don't tint the area around the pitch
+    ctx.fillRect(pitchRect.x, pitchRect.y, pitchRect.w, pitchRect.h);
+  }
+
+  // Tiny "🎯" icon in the bottom-right corner — invisible hotspot for the goal machine.
+  function drawGoalMachineIndicator() {
+    if (!goalMachine && !ballAtIndicator()) return;
+    const x = W - 12, y = H - 12;
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.008);
+    ctx.save();
+    // Backdrop square
+    ctx.fillStyle = goalMachine ? 'rgba(220, 38, 38, 0.85)' : `rgba(0, 0, 0, ${0.3 + pulse * 0.2})`;
+    ctx.fillRect(W - 50, H - 50, 50, 50);
+    // Pulsing ring if armed
+    if (goalMachine) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 14 + pulse * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // Soccer ball icon (simple)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Pentagon pattern
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  function ballAtIndicator() {  // helper for the indicator draw
+    return mouse.x > W - 50 && mouse.y > H - 50;
+  }
+
+  function render() {
+    drawPitch();
+    drawEatenHoles();  // Pac-Man's eaten areas punch through the green pitch
+    drawGoalFlash();
+    // Screen shake: apply random offset to all draws below
+    let shakeX = 0, shakeY = 0;
+    if (screenShake > 0) {
+      shakeX = (Math.random() - 0.5) * screenShake * 24;
+      shakeY = (Math.random() - 0.5) * screenShake * 24;
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+    }
+    pieces.forEach(p => drawPiece(p));
+    drawBall();
+    drawAimIndicator();
+    if (screenShake > 0) ctx.restore();
+    // UI indicators drawn outside the shake transform so they stay stable
+    drawGoalMachineIndicator();
+    // Explosions are drawn last so they float above everything
+    explosions.forEach(ex => drawExplosion(ex));
+    windGusts.forEach(g => drawWindGust(g));
+    // Nuke + hacker-rain are drawn last so they overlay everything
+    drawNuke();
+    drawHackerRain();
+    drawSecurityBreach();
+    drawResetButton();
+    // Pac-Man is drawn last so he floats above everything (but below the menu overlay)
+    drawPacman();
+  }
+
+  // Separate any two pieces that ended up overlapping (e.g. after a flick cascade,
+  // or when a piece was pushed into another by the ball). Without this, pieces
+  // can sit on top of each other ("eaten" visually) until the next flick.
+  function unoverlapPieces() {
+    // SECURITY BREACH check (catches pieces that landed on black AFTER the flick
+    // ended, or pieces that weren't part of an active flick). Fires immediately
+    // when ANY piece is overlapping the eaten pitch.
+    if (pacman && pacman.phase === 'eating' && pacman.eaten && pacman.eaten.length > 0
+        && !pacman.breachTriggered) {
+      const pieceRadius = PIECE_R;
+      for (const p of pieces) {
+        for (const r of pacman.eaten) {
+          const cx = Math.max(r.x0, Math.min(p.x, r.x1));
+          const cy = Math.max(r.y0, Math.min(p.y, r.y1));
+          const dx = p.x - cx;
+          const dy = p.y - cy;
+          const dist = Math.hypot(dx, dy);
+          if (dist < pieceRadius * 1.5) {
+            pacman.breachTriggered = true;
+            triggerSecurityBreach({ piece: p });
+            break;
+          }
+        }
+        if (pacman.breachTriggered) break;
+      }
+    }
+
+    const md = PIECE_R * 2;
+    // Run multiple iterations to resolve clusters of 3+ pieces.
+    for (let iter = 0; iter < 4; iter++) {
+      let moved = false;
+      for (let i = 0; i < pieces.length; i++) {
+        for (let j = i + 1; j < pieces.length; j++) {
+          const a = pieces[i], b = pieces[j];
+          const ddx = b.x - a.x;
+          const ddy = b.y - a.y;
+          const dd = Math.hypot(ddx, ddy);
+          if (dd < md && dd > 0.001) {
+            const overlap = md - dd;
+            const nx = ddx / dd, ny = ddy / dd;
+            // Split the push 50/50 unless one piece is currently the flick's moving piece
+            // — in that case the moving piece gets more of the push (since it has momentum).
+            const aShare = (flickAnim && flickAnim.active && flickAnim.piece === a) ? 0.7 : 0.5;
+            const bShare = (flickAnim && flickAnim.active && flickAnim.piece === b) ? 0.7 : 0.5;
+            a.x -= nx * overlap * aShare;
+            a.y -= ny * overlap * aShare;
+            b.x += nx * overlap * bShare;
+            b.y += ny * overlap * bShare;
+            moved = true;
+          } else if (dd <= 0.001) {
+            // Perfectly stacked — nudge them apart by a deterministic axis
+            const nudge = (i + j) % 2 === 0 ? 1 : -1;
+            a.x -= nudge * 0.5;
+            b.x += nudge * 0.5;
+            moved = true;
+          }
+        }
+      }
+      if (!moved) break;
+    }
+  }
+
+  function loop() {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - lastTick) / 1000);
+    lastTick = now;
+    if (state === 'playing') {
+      tickBall(dt);
+      if (flickAnim && flickAnim.active) tickFlick(dt);
+      // Resolve any leftover piece-overlap so pieces never sit on top of each other
+      unoverlapPieces();
+    }
+    // These run even during goal_celebrate so explosions complete smoothly
+    updateExplosions(dt);
+    updateWindGusts(dt);
+    tickGoalMachine();
+    updatePacman(dt);
+    if (screenShake > 0) screenShake = Math.max(0, screenShake - dt * 2);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ====== BALL PHYSICS (runs every frame, independent of flick) ======
+  function tickBall(dt) {
+    // Pac-Man ate the ball — skip physics, ball is hidden until respawn timer expires
+    if (ball.hiddenUntil && performance.now() < ball.hiddenUntil) return;
+    // Sanity guard: kill NaN/Infinity so the ball never gets stuck
+    if (!isFinite(ball.vx) || !isFinite(ball.vy) || !isFinite(ball.x) || !isFinite(ball.y)) {
+      ball.vx = 0; ball.vy = 0; ball.x = W / 2; ball.y = H / 2;
+      return;
+    }
+
+    // SECURITY BREACH: if ANY part of the ball touches any black (eaten) rectangle,
+    // IMMEDIATELY stop it and trigger the breach. Ball is allowed to rest on the black.
+    if (pacman && pacman.phase === 'eating' && pacman.eaten && pacman.eaten.length > 0) {
+      const ballRadius = BALL_R;
+      for (const r of pacman.eaten) {
+        const cx = Math.max(r.x0, Math.min(ball.x, r.x1));
+        const cy = Math.max(r.y0, Math.min(ball.y, r.y1));
+        const dx = ball.x - cx;
+        const dy = ball.y - cy;
+        const dist = Math.hypot(dx, dy);
+        // Trigger as soon as the ball's EDGE touches the black (not just the center)
+        if (dist < ballRadius * 1.5) {
+          // HARD STOP — zero out velocity completely so the ball is frozen in place
+          ball.vx = 0;
+          ball.vy = 0;
+          // No snap-back — ball rests on the black
+          // Trigger breach (pass `null` for ball — ball is not queued per design)
+          if (!pacman.breachTriggered) {
+            pacman.breachTriggered = true;
+            triggerSecurityBreach(null);
+          }
+          // Stop ball physics for the rest of this tick (skip the integration step below)
+          return;
+        }
+      }
+    }
+
+    const bSpeed = Math.hypot(ball.vx, ball.vy);
+    if (bSpeed <= 4) {
+      ball.vx = 0; ball.vy = 0;
+      return;
+    }
+
+    // Substeps so a fast ball doesn't tunnel through pieces or walls.
+    const SUBSTEPS = 4;
+    const subDt = dt / SUBSTEPS;
+    for (let s = 0; s < SUBSTEPS; s++) {
+      const curSpeed = Math.hypot(ball.vx, ball.vy);
+      if (curSpeed <= 4) break;
+
+      // friction
+      const decel = BALL_FRICTION * 60 * subDt;
+      const newSpeed = Math.max(0, curSpeed - decel);
+      const scale = newSpeed / curSpeed;
+      ball.vx *= scale;
+      ball.vy *= scale;
+      // integrate
+      ball.x += ball.vx * subDt;
+      ball.y += ball.vy * subDt;
+
+      // Ball bounces off pieces — only respond to the FIRST piece hit per substep
+      // so a ball flying through a cluster doesn't accumulate impossible interactions.
+      let ballFirstHit = true;
+      pieces.forEach(other => {
+        if (!ballFirstHit) return;
+        const ddx = ball.x - other.x;
+        const ddy = ball.y - other.y;
+        const dd = Math.hypot(ddx, ddy);
+        const md = BALL_R + PIECE_R;
+        if (dd < md && dd > 0.001) {
+          const overlap = md - dd;
+          const nx = ddx / dd, ny = ddy / dd;
+          ball.x += nx * overlap;
+          ball.y += ny * overlap;
+          const dot = ball.vx * nx + ball.vy * ny;
+          if (dot < 0) {
+            // Standard 2D reflection: v' = v - 2(v·n)n, scaled by restitution once
+            ball.vx -= 2 * dot * nx * RESTITUTION;
+            ball.vy -= 2 * dot * ny * RESTITUTION;
+          }
+          ballFirstHit = false;
+        }
+      });
+
+      // Ball bounces off Pac-Man (he doesn't eat it anymore)
+      if (pacman && pacman.phase === 'eating') {
+        const pdx = ball.x - pacman.x;
+        const pdy = ball.y - pacman.y;
+        const pd = Math.hypot(pdx, pdy);
+        const pm = BALL_R + CELL_H * 0.42;
+        if (pd < pm && pd > 0.001) {
+          const overlap = pm - pd;
+          const nx = pdx / pd, ny = pdy / pd;
+          ball.x += nx * overlap;
+          ball.y += ny * overlap;
+          const dot = ball.vx * nx + ball.vy * ny;
+          if (dot < 0) {
+            ball.vx -= 2 * dot * nx * RESTITUTION;
+            ball.vy -= 2 * dot * ny * RESTITUTION;
+          }
+        }
+      }
+
+      // top/bottom walls
+      if (ball.y - BALL_R < pitchRect.y) {
+        ball.y = pitchRect.y + BALL_R;
+        ball.vy = Math.abs(ball.vy) * RESTITUTION;
+      }
+      if (ball.y + BALL_R > pitchRect.y + pitchRect.h) {
+        ball.y = pitchRect.y + pitchRect.h - BALL_R;
+        ball.vy = -Math.abs(ball.vy) * RESTITUTION;
+      }
+      // left/right walls ONLY outside goal mouth (so it CAN enter the goal)
+      if (ball.y < goalTop || ball.y > goalBot) {
+        if (ball.x - BALL_R < pitchRect.x) {
+          ball.x = pitchRect.x + BALL_R;
+          ball.vx = Math.abs(ball.vx) * RESTITUTION;
+        }
+        if (ball.x + BALL_R > pitchRect.x + pitchRect.w) {
+          ball.x = pitchRect.x + pitchRect.w - BALL_R;
+          ball.vx = -Math.abs(ball.vx) * RESTITUTION;
+        }
+      }
+      // back of net + posts (if inside goal area)
+      // Note: NO back-of-net bounce — we WANT the ball to settle in the goal
+      // mouth so the goal-detection below fires reliably. The only bounces
+      // are off the goal posts (top/bottom of the mouth).
+      const inLeftGoalArea = ball.x < pitchRect.x && ball.y > goalTop && ball.y < goalBot;
+      const inRightGoalArea = ball.x > pitchRect.x + pitchRect.w && ball.y > goalTop && ball.y < goalBot;
+      if (inLeftGoalArea || inRightGoalArea) {
+        // Goal post bounces only (top and bottom of the mouth)
+        if (ball.y - BALL_R < goalTop) {
+          ball.y = goalTop + BALL_R;
+          ball.vy = Math.abs(ball.vy) * RESTITUTION;
+        }
+        if (ball.y + BALL_R > goalBot) {
+          ball.y = goalBot - BALL_R;
+          ball.vy = -Math.abs(ball.vy) * RESTITUTION;
+        }
+      }
+
+      // Goal detection (every substep — fires the instant the ball crosses the line)
+      // The net owns the goal: ball in LEFT net → kids get the point, ball in RIGHT net → dad gets the point.
+      // (If you accidentally score in your own net — that's the other team's net anyway.)
+      const inGoalY = ball.y > goalTop - BALL_R && ball.y < goalBot + BALL_R;
+      const inLeftNet = inGoalY && ball.x < pitchRect.x + 2;
+      const inRightNet = inGoalY && ball.x > pitchRect.x + pitchRect.w - 2;
+      if (inLeftNet) {
+        onGoal('kids');
+        return;
+      } else if (inRightNet) {
+        onGoal('dad');
+        return;
+      }
+    }
+  }
+
+  function startMatch() {
+    initState();
+    state = 'playing';
+    overlay.classList.add('hidden');
+    lastTick = performance.now();
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (state === 'menu' || state === 'fulltime') {
+      overlay.querySelector('h1').textContent = 'GOAL!';
+      overlay.querySelector('h2').textContent = 'Soccer Pool — Dad vs The Kids';
+      overlay.querySelector('p').innerHTML =
+        '<span class="heart">♥</span> Happy Father\'s Day! Today you play soccer pool against your kids. <span class="heart">♥</span>' +
+        '<br><br>Each side has <b>5 pieces</b>: goalkeeper, two defenders, defensive midfielder, striker.' +
+        '<br><b>Hold &amp; drag back</b> from a piece to pull it. Release to flick — the further you pull, the harder the hit.' +
+        '<br>You control <b>both sides</b> — flick your own pieces, then pass the mouse and let someone else flick theirs.' +
+        '<br>Score in <b>your own attacking net</b> for a point: kids attack the left net, dad attacks the right net.';
+    }
+    vsBots = false;  // human-vs-human mode
+    startMatch();
+  });
+
+  vsBotsBtn.addEventListener('click', () => {
+    if (state === 'menu' || state === 'fulltime') {
+      // Show the difficulty picker instead of starting the match.
+      showDifficultyPicker();
+    }
+  });
+
+  // Show 3 difficulty buttons in the overlay. Clicking one sets botLevel and starts the match.
+  function showDifficultyPicker() {
+    overlay.querySelector('h1').textContent = 'VS BOTS 🤖';
+    overlay.querySelector('h2').textContent = 'Pick a Bot Level';
+    overlay.querySelector('p').innerHTML =
+      '<b>Level 1</b> — easiest, takes random shots, sometimes misses<br>' +
+      '<b>Level 2</b> — a bit harder, picks nearest piece, decent aim<br>' +
+      '<b>Level 3</b> — quite hard, aims for the goal, shoots harder, blocks your shots';
+    overlay.querySelector('#startBtn').style.display = 'none';
+    overlay.querySelector('#vsBotsBtn').style.display = 'none';
+    // Inject difficulty buttons (idempotent — remove if exists)
+    let diffDiv = document.getElementById('difficultyPicker');
+    if (diffDiv) diffDiv.remove();
+    diffDiv = document.createElement('div');
+    diffDiv.id = 'difficultyPicker';
+    diffDiv.style.cssText = 'display:flex; gap:12px; margin-top:14px; justify-content:center;';
+    for (const lvl of [1, 2, 3]) {
+      const btn = document.createElement('button');
+      btn.textContent = `LEVEL ${lvl}`;
+      btn.style.cssText = lvl === 1
+        ? 'background:#22c55e; color:#fff; box-shadow:0 4px 0 #14532d, 0 6px 12px rgba(0,0,0,0.4); padding:10px 20px; font-size:14px; letter-spacing:2px;'
+        : lvl === 2
+          ? 'background:#fbbf24; color:#0a1f0a; box-shadow:0 4px 0 #b45309, 0 6px 12px rgba(0,0,0,0.4); padding:10px 20px; font-size:14px; letter-spacing:2px;'
+          : 'background:#dc2626; color:#fff; box-shadow:0 4px 0 #7f1d1d, 0 6px 12px rgba(0,0,0,0.4); padding:10px 20px; font-size:14px; letter-spacing:2px;';
+      btn.addEventListener('click', () => {
+        vsBots = true;
+        botLevel = lvl;
+        // Restore overlay buttons for future use
+        overlay.querySelector('#startBtn').style.display = '';
+        overlay.querySelector('#vsBotsBtn').style.display = '';
+        document.getElementById('difficultyPicker').remove();
+        startMatch();
+      });
+      diffDiv.appendChild(btn);
+    }
+    overlay.querySelector('.card')?.appendChild(diffDiv) ||
+      overlay.querySelector('#overlayContent')?.appendChild(diffDiv) ||
+      overlay.appendChild(diffDiv);
+  }
+
+  // boot
+  initState();
+  state = 'menu';
+  lastTick = performance.now();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

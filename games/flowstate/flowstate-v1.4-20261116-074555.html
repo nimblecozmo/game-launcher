@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>FLOWSTATE — Navier-Stokes Fluid Dynamics</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:#060c14;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:#9fb3c8;-webkit-tap-highlight-color:transparent;touch-action:none;
+    user-select:none;-webkit-user-select:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #gl{z-index:1}
+  #ov{z-index:2;pointer-events:none}
+  #hud{position:fixed;inset:0;z-index:3;pointer-events:none}
+  .panel{position:absolute;background:rgba(8,18,28,.78);border:1px solid rgba(46,230,214,.22);
+    border-radius:10px;padding:10px 13px;backdrop-filter:blur(7px);
+    box-shadow:0 6px 22px rgba(0,0,0,.45)}
+  .tl{top:14px;left:14px}.tr{top:14px;right:14px;text-align:right}
+  .bl{bottom:14px;left:14px}.br{bottom:14px;right:14px}
+  .lvl{font-size:11px;letter-spacing:2.2px;color:#ffb347;font-weight:700;margin-bottom:7px}
+  .row{display:flex;gap:14px;justify-content:space-between;font-size:11px;letter-spacing:1.4px;margin:3px 0}
+  .tr .row{justify-content:flex-end}
+  .row span{color:#5f7b93}
+  .row b{color:#dceaf5;font-size:14px;letter-spacing:1px;font-variant-numeric:tabular-nums}
+  .warn{color:#ff6b6b !important}
+  button{pointer-events:auto;font-family:inherit;font-size:10.5px;letter-spacing:1.6px;font-weight:700;
+    color:#9fb3c8;background:rgba(14,30,44,.9);border:1px solid rgba(46,230,214,.3);
+    border-radius:7px;padding:7px 11px;cursor:pointer;transition:.15s}
+  button:hover{color:#06121a;background:#2ee6d6;border-color:#2ee6d6}
+  button.on{color:#06121a;background:#ffb347;border-color:#ffb347}
+  .btns{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;justify-content:flex-end}
+  .sl{margin:8px 0 2px;font-size:10px;letter-spacing:1.4px;color:#5f7b93}
+  .sl b{color:#dceaf5;float:right;font-variant-numeric:tabular-nums}
+  input[type=range]{pointer-events:auto;width:148px;height:16px;-webkit-appearance:none;appearance:none;
+    background:transparent;cursor:pointer;margin-top:2px}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;background:rgba(46,230,214,.25);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:#2ee6d6;margin-top:-4.5px;box-shadow:0 0 8px rgba(46,230,214,.6)}
+  input[type=range]::-moz-range-track{height:4px;background:rgba(46,230,214,.25);border-radius:2px}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:#2ee6d6}
+  .swatches{display:flex;gap:9px;margin-top:4px}
+  .sw{pointer-events:auto;width:34px;height:34px;border-radius:9px;cursor:pointer;border:2px solid transparent;
+    transition:.15s;box-shadow:0 3px 12px rgba(0,0,0,.5)}
+  .sw.sel{border-color:#eaf4ff;transform:translateY(-3px);box-shadow:0 5px 16px rgba(0,0,0,.6)}
+  #hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+    font-size:10.5px;letter-spacing:1.5px;color:#54708a;white-space:nowrap;text-align:center}
+  .screen{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:9px;text-align:center;padding:24px;
+    background:radial-gradient(ellipse at 50% 42%,rgba(8,22,34,.62),rgba(3,7,12,.93) 72%)}
+  .screen.hidden{display:none}
+  h1{font-size:clamp(34px,8vw,66px);letter-spacing:11px;font-weight:800;color:#eaf4ff;
+    text-shadow:0 0 34px rgba(46,230,214,.42),0 5px 24px rgba(0,0,0,.7);margin-left:11px}
+  h2{font-size:clamp(22px,4.6vw,34px);letter-spacing:7px;color:#ffb347;
+    text-shadow:0 0 24px rgba(255,179,71,.36);margin-left:7px}
+  .sub{font-size:12px;letter-spacing:3.4px;color:#5f8ba3;margin-bottom:6px}
+  .desc{font-size:11.5px;letter-spacing:1.2px;color:#7e9bb2;max-width:560px;line-height:1.85}
+  .desc b{color:#2ee6d6;font-weight:700}
+  .big{pointer-events:auto;font-size:15px;letter-spacing:4px;padding:14px 40px;margin-top:14px;
+    color:#06121a;background:#2ee6d6;border:0;box-shadow:0 0 30px rgba(46,230,214,.38)}
+  .big:hover{background:#7ff5e9;box-shadow:0 0 42px rgba(46,230,214,.6)}
+  .stats{display:flex;gap:26px;margin:12px 0 2px;flex-wrap:wrap;justify-content:center}
+  .stat{text-align:center}
+  .stat .v{font-size:24px;color:#dceaf5;letter-spacing:1px;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:9.5px;letter-spacing:2.2px;color:#5f7b93;margin-top:3px}
+  .keys{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:16px;max-width:620px}
+  .key{font-size:10px;letter-spacing:1.2px;color:#7e9bb2;border:1px solid rgba(95,123,147,.35);
+    border-radius:6px;padding:6px 10px;background:rgba(10,20,30,.6)}
+  .key b{color:#2ee6d6}
+  .hidden{display:none !important}
+  .tools{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:nowrap;white-space:nowrap}
+  .tool{width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center}
+  .tool svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;
+    stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+  .tool.on{color:#06121a;background:#2ee6d6;border-color:#2ee6d6;box-shadow:0 0 12px rgba(46,230,214,.5)}
+  .toolrow{display:flex;align-items:center;gap:4px;padding-left:6px;flex-wrap:nowrap;white-space:nowrap;
+    border-left:1px solid rgba(95,123,147,.28)}
+  #widths{display:flex;align-items:center;gap:3px;flex-wrap:nowrap}
+  .wt{width:20px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:6px}
+  .wt i{display:block;background:currentColor;border-radius:2px;width:5px}
+  .wt.on{color:#06121a;background:#ffb347;border-color:#ffb347}
+  #fatal{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;
+    padding:30px;background:#060c14;color:#ff8a8a;font-size:13px;letter-spacing:1px;line-height:2;text-align:center}
+  @media(max-width:700px){
+    .panel{padding:8px 10px;border-radius:8px}
+    .lvl{font-size:9.5px;letter-spacing:1.6px}
+    .row{font-size:9.5px;letter-spacing:1px}.row b{font-size:12px}
+    .bl{bottom:auto;top:108px;left:14px}.br{bottom:14px;right:14px;left:auto}
+    input[type=range]{width:112px}
+    .sw{width:30px;height:30px}
+    #hint{display:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="ov"></canvas>
+
+<div id="hud">
+  <div class="panel tl">
+    <div class="lvl" id="lvlName">FLOWSTATE &middot; v1.4</div>
+    <div class="tools">
+      <button id="btnPencil" class="tool" title="Draw a shape (the fluid flows around it)">
+        <svg viewBox="0 0 24 24"><path d="M4 20l3.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20z"/><path d="M14.5 6.5l3 3"/></svg>
+      </button>
+      <span id="toolRow" class="toolrow hidden">
+        <button id="btnEraser" class="tool" title="Eraser">
+          <svg viewBox="0 0 24 24"><path d="M8 20H5l-2-2 10-10 6 6-7 7H8z"/><path d="M11 6l6 6"/></svg>
+        </button>
+        <span id="widths"></span>
+      </span>
+    </div>
+  </div>
+  <div class="panel tr">
+    <div class="btns">
+      <button id="btnVec">VECTORS</button>
+      <button id="btnRestart">CLEAR</button>
+      <button id="btnMenu">MENU</button>
+    </div>
+  </div>
+  <div class="panel bl">
+    <div class="sl">FLUID<b id="hFluid">CYAN</b></div>
+    <div class="swatches" id="swatches"></div>
+  </div>
+  <div class="panel br">
+    <div class="sl">VISCOSITY<b id="hVisc">0.30</b></div>
+    <input type="range" id="inVisc" min="0" max="100" value="30">
+    <div class="sl">TIMESTEP<b id="hStep">&times;1.00</b></div>
+    <input type="range" id="inStep" min="15" max="250" value="100">
+    <div class="btns"><button id="btnGrav">GRAVITY: DOWN</button></div>
+  </div>
+  <div id="hint">DRAG TO POUR &nbsp;·&nbsp; 1-6 FLUID &nbsp;·&nbsp; PENCIL TO DRAW &nbsp;·&nbsp; V VECTORS &nbsp;·&nbsp; G GRAVITY &nbsp;·&nbsp; R CLEAR</div>
+</div>
+
+<div id="title" class="screen">
+  <div class="sub">NAVIER–STOKES FLUID LAB</div>
+  <h1>FLOWSTATE</h1>
+  <div class="desc">Real <b>incompressible Navier–Stokes</b> solved on the GPU — advection, viscosity,
+  vorticity and pressure projection. One open space. Pour coloured fluid and watch it curl,
+  swirl and collide with itself. No walls, no blocks, no clock, no limits.</div>
+  <button class="big" id="btnPlay">START</button>
+  <div class="keys">
+    <div class="key"><b>DRAG</b> pour with momentum</div>
+    <div class="key"><b>SPACE</b> pressure jet (5x)</div>
+    <div class="key"><b>1-6</b> pick fluid</div>
+    <div class="key"><b>V</b> velocity field</div>
+    <div class="key"><b>G</b> gravity</div>
+    <div class="key"><b>PENCIL</b> draw a shape — the fluid flows around it</div>
+    <div class="key"><b>R</b> clear the space</div>
+  </div>
+</div>
+
+<div id="fatal"></div>
+
+<script>
+(function () {
+'use strict';
+
+// ============================================================================
+//  CFG
+// ============================================================================
+const CFG = {
+  SIM_W: 256,
+  DYE_W: 512,
+  PRESSURE_ITER: 20,
+  VISC_ITER: 4,
+  SPLAT_RADIUS: 0.0033,
+  SPLAT_FORCE: 3500,
+  DYE_DISSIPATION: 0.32,
+  VEL_DISSIPATION: 0.22,
+  CURL_STRENGTH: 18,         // fixed swirl in the fluid (the knob is TIMESTEP now)
+  TIMESTEP_MIN: 0.15,
+  TIMESTEP_MAX: 2.50,
+  GROUND_GRAVITY: -105,
+  VERSION: 'v1.4'
+};
+
+// Real colours. Add one here and it joins the "ALL" swatch automatically.
+const PALETTE = [
+  { name: 'CYAN',    rgb: [0.18, 0.90, 0.84], css: '#2ee6d6' },
+  { name: 'MAGENTA', rgb: [0.89, 0.36, 0.85], css: '#e35bd8' },
+  { name: 'AMBER',   rgb: [1.00, 0.70, 0.28], css: '#ffb347' },
+  { name: 'LIME',    rgb: [0.62, 0.96, 0.16], css: '#9ef01a' },
+  { name: 'BLOOD',   rgb: [0.80, 0.06, 0.09], css: '#cc0f17' }
+];
+// The last swatch pours every colour in the palette, including future ones.
+const SWATCHES = PALETTE.concat([{ name: 'ALL', special: true, css: '#ffffff' }]);
+let mixCursor = 0;
+// For the ALL swatch we need the colour AND its index so each one can be laid
+// down beside the last instead of painting straight over it.
+function activeColour() {
+  const s = SWATCHES[selectedFluid];
+  if (s && s.special) {
+    const idx = mixCursor % PALETTE.length;
+    mixCursor++;
+    return { c: PALETTE[idx], idx: idx, all: true };
+  }
+  return { c: s, idx: -1, all: false };
+}
+
+// ============================================================================
+//  ONE OPEN SPACE
+//  No blocks, no walls, no levels, no circles. Just fluid.
+// ============================================================================
+// (no levels — one open space)
+
+// ============================================================================
+//  STATE
+// ============================================================================
+let mode = 'title';           // title | playing
+let obstacles = [];
+// ---- drawing ----
+let drawMode = false;          // pencil toolbar open
+let drawTool = 'pencil';       // 'pencil' | 'eraser'
+let brushIndex = 2;            // which of the 5 thicknesses
+const BRUSHES = [0.009, 0.015, 0.023, 0.033, 0.046];
+let strokes = [];              // {pts:[[x,y],...], erase:bool, w:number}
+let currentStroke = null;
+let maskDirty = true;
+let artCanvas = null, artCtx = null, maskCanvas = null, maskCtx = null;
+let maskSolidCount = 0;        // debug: how many solid cells made it to the GPU
+let maskTop = 0, maskBottom = 0;
+let selectedFluid = 0;
+let viscosity = 0.30;
+let timestep = 1.00;
+let gravityMode = 1;          // 1 = down, 0 = off, 2 = up
+let showVectors = false;
+let mouse = { x: 0.5, y: 0.5, down: false, px: 0.5, py: 0.5, moved: 0, jet: false };
+let lastFrame = performance.now();
+let elapsed = 0;
+let fpsAcc = 0, fpsCount = 0, fps = 60;
+let rafErrors = [];
+
+// ============================================================================
+//  GL SETUP
+// ============================================================================
+const glCanvas = document.getElementById('gl');
+const ovCanvas = document.getElementById('ov');
+const octx = ovCanvas.getContext('2d');
+const gl = glCanvas.getContext('webgl2', {
+  alpha: false, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false
+});
+
+function fatal(msg) {
+  const f = document.getElementById('fatal');
+  f.style.display = 'flex';
+  f.innerHTML = msg;
+  if (rafErrors.length) {
+    f.innerHTML += '<br><br><span style="color:#7e9bb2;font-size:11px">' +
+      rafErrors.slice(0, 3).map(e => e.msg).join('<br>') + '</span>';
+  }
+}
+if (!gl) {
+  fatal('WEBGL2 NOT AVAILABLE<br><br>This lab needs WebGL2 + floating-point textures.<br>' +
+        'Try Chrome, Brave or Firefox with hardware acceleration enabled.');
+  return;
+}
+const floatExt = gl.getExtension('EXT_color_buffer_float');
+const linearExt = gl.getExtension('OES_texture_float_linear');
+if (!floatExt) {
+  fatal('FLOAT TEXTURES NOT AVAILABLE<br><br>EXT_color_buffer_float is required.');
+  return;
+}
+
+// ---- shaders ---------------------------------------------------------------
+const VERT = `#version 300 es
+precision highp float;
+in vec2 aPos;
+out vec2 vUv;
+out vec2 vL; out vec2 vR; out vec2 vT; out vec2 vB;
+uniform vec2 uTexelSize;
+void main(){
+  vUv = aPos * 0.5 + 0.5;
+  vL = vUv - vec2(uTexelSize.x, 0.0);
+  vR = vUv + vec2(uTexelSize.x, 0.0);
+  vT = vUv + vec2(0.0, uTexelSize.y);
+  vB = vUv - vec2(0.0, uTexelSize.y);
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+const F_ADVECT = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; out vec4 outColor;
+uniform sampler2D uVelocity; uniform sampler2D uSource; uniform sampler2D uObstacle;
+uniform vec2 uTexelSize; uniform float uDt; uniform float uDissipation;
+void main(){
+  vec2 vel = texture(uVelocity, vUv).xy;
+  vec2 coord = vUv;
+  // Walk the backtrace in small steps and STOP at a solid cell. A plain
+  // semi-Lagrangian backtrace jumps the whole distance in one sample, which
+  // lets the fluid leap clean over a drawn wall.
+  vec2 stepv = vel * uDt * uTexelSize / 12.0;
+  for (int i = 0; i < 12; i++) {
+    vec2 probe = coord - stepv;
+    if (texture(uObstacle, probe).r > 0.5) break;
+    coord = probe;
+  }
+  vec4 result = texture(uSource, coord);
+  float decay = 1.0 + uDissipation * uDt;
+  outColor = result / decay;
+}`;
+
+const F_DIVERGENCE = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+out vec4 outColor; uniform sampler2D uVelocity;
+void main(){
+  float L = texture(uVelocity, vL).x;
+  float R = texture(uVelocity, vR).x;
+  float T = texture(uVelocity, vT).y;
+  float B = texture(uVelocity, vB).y;
+  vec2 C = texture(uVelocity, vUv).xy;
+  if (vL.x < 0.0) L = -C.x;
+  if (vR.x > 1.0) R = -C.x;
+  if (vT.y > 1.0) T = -C.y;
+  if (vB.y < 0.0) B = -C.y;
+  outColor = vec4(0.5 * (R - L + T - B), 0.0, 0.0, 1.0);
+}`;
+
+const F_CURL = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+out vec4 outColor; uniform sampler2D uVelocity;
+void main(){
+  float L = texture(uVelocity, vL).y;
+  float R = texture(uVelocity, vR).y;
+  float T = texture(uVelocity, vT).x;
+  float B = texture(uVelocity, vB).x;
+  outColor = vec4(0.5 * (R - L - T + B), 0.0, 0.0, 1.0);
+}`;
+
+const F_VORTICITY = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+out vec4 outColor;
+uniform sampler2D uVelocity; uniform sampler2D uCurl;
+uniform float uCurlStrength; uniform float uDt; uniform float uGravity;
+void main(){
+  float L = texture(uCurl, vL).x;
+  float R = texture(uCurl, vR).x;
+  float T = texture(uCurl, vT).x;
+  float B = texture(uCurl, vB).x;
+  float C = texture(uCurl, vUv).x;
+  vec2 force = 0.5 * vec2(abs(T) - abs(B), abs(R) - abs(L));
+  force /= length(force) + 0.0001;
+  force *= uCurlStrength * C;
+  force.y *= -1.0;
+  vec2 vel = texture(uVelocity, vUv).xy;
+  vel += force * uDt;
+  vel.y += uGravity * uDt;
+  outColor = vec4(clamp(vel, -3000.0, 3000.0), 0.0, 1.0);
+}`;
+
+const F_PRESSURE = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+out vec4 outColor;
+uniform sampler2D uPressure; uniform sampler2D uDivergence; uniform sampler2D uObstacle;
+void main(){
+  float C = texture(uPressure, vUv).x;
+  float L = texture(uPressure, vL).x; if (texture(uObstacle, vL).r > 0.5) L = C;
+  float R = texture(uPressure, vR).x; if (texture(uObstacle, vR).r > 0.5) R = C;
+  float B = texture(uPressure, vB).x; if (texture(uObstacle, vB).r > 0.5) B = C;
+  float T = texture(uPressure, vT).x; if (texture(uObstacle, vT).r > 0.5) T = C;
+  float div = texture(uDivergence, vUv).x;
+  outColor = vec4((L + R + B + T - div) * 0.25, 0.0, 0.0, 1.0);
+}`;
+
+const F_GRADIENT = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+out vec4 outColor;
+uniform sampler2D uPressure; uniform sampler2D uVelocity; uniform sampler2D uObstacle;
+void main(){
+  float C = texture(uPressure, vUv).x;
+  float L = texture(uPressure, vL).x; if (texture(uObstacle, vL).r > 0.5) L = C;
+  float R = texture(uPressure, vR).x; if (texture(uObstacle, vR).r > 0.5) R = C;
+  float B = texture(uPressure, vB).x; if (texture(uObstacle, vB).r > 0.5) B = C;
+  float T = texture(uPressure, vT).x; if (texture(uObstacle, vT).r > 0.5) T = C;
+  vec2 vel = texture(uVelocity, vUv).xy;
+  vel -= vec2(R - L, T - B);
+  float solid = texture(uObstacle, vUv).r;
+  outColor = vec4(vel * (1.0 - solid), 0.0, 1.0);
+}`;
+
+const F_VISCOSITY = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+out vec4 outColor; uniform sampler2D uVelocity; uniform float uAlpha;
+void main(){
+  vec2 L = texture(uVelocity, vL).xy;
+  vec2 R = texture(uVelocity, vR).xy;
+  vec2 B = texture(uVelocity, vB).xy;
+  vec2 T = texture(uVelocity, vT).xy;
+  vec2 C = texture(uVelocity, vUv).xy;
+  outColor = vec4((L + R + B + T + uAlpha * C) / (4.0 + uAlpha), 0.0, 1.0);
+}`;
+
+const F_DIFFUSE = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+out vec4 outColor;
+uniform sampler2D uSource; uniform float uAlpha;
+void main(){
+  vec4 L = texture(uSource, vL);
+  vec4 R = texture(uSource, vR);
+  vec4 B = texture(uSource, vB);
+  vec4 T = texture(uSource, vT);
+  vec4 C = texture(uSource, vUv);
+  outColor = (L + R + B + T + uAlpha * C) / (4.0 + uAlpha);
+}`;
+
+const F_MASK = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; out vec4 outColor;
+uniform sampler2D uSource; uniform sampler2D uObstacle;
+void main(){
+  vec4 s = texture(uSource, vUv);
+  float solid = texture(uObstacle, vUv).r;
+  outColor = s * (1.0 - solid);
+}`;
+
+const F_SPLAT = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; out vec4 outColor;
+uniform sampler2D uTarget; uniform float uAspect;
+uniform vec3 uColor; uniform vec2 uPoint; uniform float uRadius;
+uniform float uPaint; uniform float uAmount;
+void main(){
+  vec2 p = vUv - uPoint;
+  p.x *= uAspect;
+  float fall = exp(-dot(p, p) / uRadius);
+  vec3 base = texture(uTarget, vUv).xyz;
+  vec3 res;
+  if (uPaint > 0.5) {
+    // PAINT: mix toward the new colour instead of adding.
+    // Adding cyan+magenta+amber+lime sums to white and kills the palette.
+    float w = clamp(fall * uAmount, 0.0, 1.0);
+    res = mix(base, uColor, w);
+  } else {
+    // ADD: momentum has to accumulate, so velocity stays additive.
+    res = base + fall * uColor;
+  }
+  outColor = vec4(res, 1.0);
+}`;
+
+const F_DISPLAY = `#version 300 es
+precision highp float; precision highp sampler2D;
+in vec2 vUv; out vec4 outColor;
+uniform sampler2D uDye; uniform sampler2D uVelocity; uniform vec2 uTexelSize;
+uniform float uVectors; uniform float uAspect; uniform float uVisc; uniform float uStep;
+void main(){
+  vec2 uv = vUv;
+  // --- deep background: teal-navy radial + faint grid ---
+  float rad = length((uv - 0.5) * vec2(uAspect, 1.0));
+  vec3 bg = mix(vec3(0.035,0.082,0.121), vec3(0.016,0.043,0.070), clamp(rad * 1.25, 0.0, 1.0));
+  vec2 g = fract(uv * vec2(28.0 * uAspect, 28.0));
+  float gd = min(min(g.x, 1.0 - g.x), min(g.y, 1.0 - g.y));
+  bg += vec3(0.10, 0.26, 0.30) * smoothstep(0.035, 0.0, gd) * 0.13;
+  bg += vec3(0.05, 0.16, 0.20) * smoothstep(0.75, 0.0, rad) * 0.30;
+
+  // --- dye ---
+  vec3 c = texture(uDye, uv).rgb;
+  float lum = dot(c, vec3(0.299, 0.587, 0.114));
+  c = mix(vec3(lum), c, 1.58);
+  c = c / (1.0 + c * 0.62);   // gentler tonemap - keeps the palette vivid
+  // cheap bloom
+  vec3 blur = vec3(0.0);
+  blur += texture(uDye, uv + vec2(uTexelSize.x * 3.5, 0.0)).rgb;
+  blur += texture(uDye, uv - vec2(uTexelSize.x * 3.5, 0.0)).rgb;
+  blur += texture(uDye, uv + vec2(0.0, uTexelSize.y * 3.5)).rgb;
+  blur += texture(uDye, uv - vec2(0.0, uTexelSize.y * 3.5)).rgb;
+  blur *= 0.25;
+  blur = blur / (1.0 + blur);
+
+  // --- viscosity changes the LOOK: thin wispy filaments -> thick creamy body ---
+  vec3 thick = blur / (1.0 + blur);
+  c = mix(c, thick * 1.55, uVisc * 0.62);
+  float body = mix(1.68, 1.08, uVisc);   // thin fluid = brighter, denser core
+  float halo = mix(0.38, 2.40, uVisc);   // viscous  = wide soft creamy glow
+
+  // filament highlight - draws out the internal wave structure of the fluid
+  float gx = texture(uDye, uv + vec2(uTexelSize.x, 0.0)).g - texture(uDye, uv - vec2(uTexelSize.x, 0.0)).g;
+  float gy = texture(uDye, uv + vec2(0.0, uTexelSize.y)).g - texture(uDye, uv - vec2(0.0, uTexelSize.y)).g;
+  float edge = clamp(length(vec2(gx, gy)) * 7.0, 0.0, 1.0);
+
+  // --- timestep changes the LOOK: slow = dreamy, fast = streaked ---
+  vec2 vv = texture(uVelocity, uv).xy;
+  float smear = max(0.0, uStep - 0.75) * 0.105;
+  vec3 sm = texture(uDye, uv - vv * smear * uTexelSize).rgb;
+  sm = sm / (1.0 + sm * 0.62);
+  c = mix(c, max(c, sm), clamp(smear * 3.2, 0.0, 0.78));
+  // slow motion goes soft and dreamy
+  float slow = clamp((1.0 - uStep) / 0.85, 0.0, 1.0);
+  c = mix(c, thick * 1.30, slow * 0.40);
+
+  vec3 col = bg + c * 1.34 * body + blur * vec3(0.30, 0.42, 0.48) * halo;
+  col += c * edge * 1.55;
+
+  // --- velocity field overlay ---
+  if (uVectors > 0.5) {
+    vec2 v = texture(uVelocity, uv).xy;
+    float m = length(v);
+    vec2 gv = uv * vec2(20.0 * uAspect, 20.0);
+    vec2 cell = fract(gv + v * 0.85) - 0.5;
+    float dotm = smoothstep(0.30, 0.05, length(cell));
+    vec3 dir = 0.5 + 0.5 * cos(6.28318 * (atan(v.y, v.x) / 6.28318 + vec3(0.0, 0.33, 0.67)));
+    float amt = clamp(m / 55.0, 0.0, 1.0);
+    col = mix(col, mix(bg * 1.4, dir, 0.55) * (0.5 + amt), dotm * 0.80);
+  }
+
+  // --- vignette ---
+  col *= 1.0 - smoothstep(0.42, 1.05, rad) * 0.62;
+  outColor = vec4(col, 1.0);
+}`;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(s);
+    fatal('SHADER ERROR<br><br><span style="font-size:10px;color:#7e9bb2">' + log + '</span>');
+    throw new Error(log);
+  }
+  return s;
+}
+function program(fsSrc) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsSrc));
+  gl.bindAttribLocation(p, 0, 'aPos');
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    const log = gl.getProgramInfoLog(p);
+    fatal('LINK ERROR<br><br><span style="font-size:10px;color:#7e9bb2">' + log + '</span>');
+    throw new Error(log);
+  }
+  return p;
+}
+
+const P_ADVECT  = program(F_ADVECT);
+const P_DIV     = program(F_DIVERGENCE);
+const P_CURL    = program(F_CURL);
+const P_VORT    = program(F_VORTICITY);
+const P_PRESS   = program(F_PRESSURE);
+const P_GRAD    = program(F_GRADIENT);
+const P_VISC    = program(F_VISCOSITY);
+const P_SPLAT   = program(F_SPLAT);
+const P_MASK    = program(F_MASK);
+const P_DIFFUSE = program(F_DIFFUSE);
+const P_DISPLAY = program(F_DISPLAY);
+
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+gl.bindVertexArray(null);
+
+function uniforms(p, names) {
+  const o = {};
+  for (const n of names) o[n] = gl.getUniformLocation(p, n);
+  return o;
+}
+const U_ADVECT  = uniforms(P_ADVECT,  ['uVelocity','uSource','uObstacle','uTexelSize','uDt','uDissipation']);
+const U_DIV     = uniforms(P_DIV,     ['uVelocity']);
+const U_CURL    = uniforms(P_CURL,    ['uVelocity']);
+const U_VORT    = uniforms(P_VORT,    ['uVelocity','uCurl','uCurlStrength','uDt','uGravity']);
+const U_PRESS   = uniforms(P_PRESS,   ['uPressure','uDivergence','uObstacle']);
+const U_GRAD    = uniforms(P_GRAD,    ['uPressure','uVelocity','uObstacle']);
+const U_VISC    = uniforms(P_VISC,    ['uVelocity','uAlpha']);
+const U_SPLAT   = uniforms(P_SPLAT,   ['uTarget','uAspect','uColor','uPoint','uRadius','uPaint','uAmount']);
+const U_MASK    = uniforms(P_MASK,    ['uSource','uObstacle']);
+const U_DIFFUSE = uniforms(P_DIFFUSE, ['uSource','uAlpha']);
+const U_DISPLAY = uniforms(P_DISPLAY, ['uDye','uVelocity','uTexelSize','uVectors','uAspect','uVisc','uStep']);
+
+function createFBO(w, h, internal, format, type, filter) {
+  const tex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.viewport(0, 0, w, h);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { tex, fbo, w, h, texelSizeX: 1 / w, texelSizeY: 1 / h };
+}
+function createDouble(w, h, internal, format, type, filter) {
+  let a = createFBO(w, h, internal, format, type, filter);
+  let b = createFBO(w, h, internal, format, type, filter);
+  // read/write MUST be live getters — a snapshot would keep pointing at the
+  // same texture after a swap and the sim would read stale (empty) data.
+  return {
+    get read() { return a; },
+    get write() { return b; },
+    w: w, h: h, texelSizeX: a.texelSizeX, texelSizeY: a.texelSizeY,
+    swap() { const t = a; a = b; b = t; }
+  };
+}
+
+const HALF = linearExt ? gl.LINEAR : gl.NEAREST;
+let velocity, dye, pressure, divergence, curl, obstacleTex, obstacleFBO;
+let SIM_H = 144, DYE_H = 288, MASK_W = 256, MASK_H = 144;
+
+function createSim() {
+  SIM_H = Math.max(64, Math.round(CFG.SIM_W * glCanvas.height / glCanvas.width));
+  DYE_H = Math.max(128, Math.round(CFG.DYE_W * glCanvas.height / glCanvas.width));
+  MASK_W = CFG.SIM_W; MASK_H = SIM_H;
+
+  velocity  = createDouble(CFG.SIM_W, SIM_H, gl.RG16F, gl.RG, gl.HALF_FLOAT, HALF);
+  dye       = createDouble(CFG.DYE_W, DYE_H, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, HALF);
+  pressure  = createDouble(CFG.SIM_W, SIM_H, gl.R16F, gl.RED, gl.HALF_FLOAT, gl.NEAREST);
+  divergence = createFBO(CFG.SIM_W, SIM_H, gl.R16F, gl.RED, gl.HALF_FLOAT, gl.NEAREST);
+  curl      = createFBO(CFG.SIM_W, SIM_H, gl.R16F, gl.RED, gl.HALF_FLOAT, gl.NEAREST);
+
+  // obstacle mask texture
+  obstacleTex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, obstacleTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, MASK_W, MASK_H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  obstacleFBO = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, obstacleFBO);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, obstacleTex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  buildMask();
+}
+
+function bindTex(unit, tex, loc) {
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.uniform1i(loc, unit);
+}
+function blit(target) {
+  if (target) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+    gl.viewport(0, 0, target.w, target.h);
+  } else {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+  }
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.bindVertexArray(null);
+}
+
+// ============================================================================
+//  DRAWING
+//  The user's strokes are rasterised twice: once at full res for the display,
+//  once at sim res to become SOLID cells in the Navier-Stokes solve.
+// ============================================================================
+function initArtCanvases() {
+  if (!artCanvas) {
+    artCanvas = document.createElement('canvas');
+    artCtx = artCanvas.getContext('2d');
+    maskCanvas = document.createElement('canvas');
+    maskCtx = maskCanvas.getContext('2d');
+  }
+  const W = ovCanvas.width, H = ovCanvas.height;
+  if (artCanvas.width !== W || artCanvas.height !== H) {
+    artCanvas.width = W; artCanvas.height = H;
+    maskCanvas.width = MASK_W; maskCanvas.height = MASK_H;
+    repaintArt();
+  }
+}
+
+// Paint one stroke into a 2D context. Points are normalised (y down).
+function paintStroke(ctx, s, cw, ch) {
+  const pts = s.pts;
+  const lw = Math.max(1, s.w * cw);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = lw;
+  if (pts.length === 1) {
+    ctx.beginPath();
+    ctx.arc(pts[0][0] * cw, pts[0][1] * ch, lw / 2, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0] * cw, pts[0][1] * ch);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * cw, pts[i][1] * ch);
+  ctx.stroke();
+}
+
+// Repaint the full-res art layer (display) - erasers cut through what is below
+function repaintArt() {
+  if (!artCtx) return;
+  const W = artCanvas.width, H = artCanvas.height;
+  artCtx.clearRect(0, 0, W, H);
+  artCtx.globalCompositeOperation = 'source-over';
+  for (const s of strokes) {
+    if (s.erase) {
+      artCtx.globalCompositeOperation = 'destination-out';
+      artCtx.strokeStyle = '#000'; artCtx.fillStyle = '#000';
+      paintStroke(artCtx, s, W, H);
+      artCtx.globalCompositeOperation = 'source-over';
+    } else {
+      artCtx.strokeStyle = 'rgba(74,104,126,0.94)';
+      artCtx.fillStyle = 'rgba(74,104,126,0.94)';
+      paintStroke(artCtx, s, W, H);
+      // a glowing core line so it reads as a solid wall
+      artCtx.save();
+      const prev = s.w;
+      s.w = prev * 0.24;
+      artCtx.strokeStyle = 'rgba(72,228,210,0.75)';
+      artCtx.fillStyle = 'rgba(72,228,210,0.75)';
+      paintStroke(artCtx, s, W, H);
+      s.w = prev;
+      artCtx.restore();
+    }
+  }
+}
+
+// Rasterise the strokes into the sim-resolution solid mask
+function repaintMask() {
+  if (!maskCtx) return;
+  maskCtx.globalCompositeOperation = 'source-over';
+  maskCtx.fillStyle = '#000';
+  maskCtx.fillRect(0, 0, MASK_W, MASK_H);
+  for (const s of strokes) {
+    if (s.erase) {
+      maskCtx.globalCompositeOperation = 'destination-out';
+      maskCtx.strokeStyle = '#000'; maskCtx.fillStyle = '#000';
+      paintStroke(maskCtx, s, MASK_W, MASK_H);
+      maskCtx.globalCompositeOperation = 'source-over';
+    } else {
+      maskCtx.strokeStyle = '#fff'; maskCtx.fillStyle = '#fff';
+      paintStroke(maskCtx, s, MASK_W, MASK_H);
+    }
+  }
+  const img = maskCtx.getImageData(0, 0, MASK_W, MASK_H).data;
+  const buf = new Uint8Array(MASK_W * MASK_H * 4);
+  // GL texture row 0 is the BOTTOM of the screen - the 2D mask canvas is
+  // top-down, so the rows have to be flipped on upload or every drawn shape
+  // ends up mirrored vertically in the physics.
+  for (let j = 0; j < MASK_H; j++) {
+    const srcRow = MASK_H - 1 - j;
+    for (let i = 0; i < MASK_W; i++) {
+      const si = (srcRow * MASK_W + i) * 4;
+      const di = (j * MASK_W + i) * 4;
+      const solid = (img[si] > 140 && img[si + 3] > 140) ? 255 : 0;
+      buf[di] = solid; buf[di + 1] = 0; buf[di + 2] = 0; buf[di + 3] = 255;
+    }
+  }
+  // debug: count the solid cells and where they landed vertically
+  maskSolidCount = 0; maskTop = MASK_H; maskBottom = 0;
+  for (let j = 0; j < MASK_H; j++) {
+    for (let i = 0; i < MASK_W; i++) {
+      if (buf[(j * MASK_W + i) * 4] > 0) {
+        maskSolidCount++;
+        if (j < maskTop) maskTop = j;
+        if (j > maskBottom) maskBottom = j;
+      }
+    }
+  }
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, obstacleTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MASK_W, MASK_H, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  maskDirty = false;
+}
+
+function buildMask() {
+  initArtCanvases();
+  repaintArt();
+  repaintMask();
+}
+
+// ============================================================================
+//  SIM STEP
+// ============================================================================
+let splatQueue = [];
+
+function splat(x, y, dx, dy, rgb, amount, radiusScale) {
+  splatQueue.push({
+    x, y, dx, dy, rgb,
+    amount: amount === undefined ? 1 : amount,
+    radiusScale: radiusScale === undefined ? 1 : radiusScale
+  });
+}
+
+function applySplats() {
+  if (!splatQueue.length) return;
+  gl.useProgram(P_SPLAT);
+  gl.uniform1f(U_SPLAT.uAspect, glCanvas.width / glCanvas.height);
+  gl.bindVertexArray(vao);
+  for (const s of splatQueue) {
+    // --- velocity (additive) ---
+    gl.bindFramebuffer(gl.FRAMEBUFFER, velocity.write.fbo);
+    gl.viewport(0, 0, velocity.write.w, velocity.write.h);
+    bindTex(0, velocity.read.tex, U_SPLAT.uTarget);
+    gl.uniform1f(U_SPLAT.uPaint, 0.0);
+    gl.uniform1f(U_SPLAT.uAmount, 1.0);
+    gl.uniform3f(U_SPLAT.uColor, s.dx, s.dy, 0);
+    gl.uniform2f(U_SPLAT.uPoint, s.x, s.y);
+    gl.uniform1f(U_SPLAT.uRadius, CFG.SPLAT_RADIUS);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    velocity.swap();
+    // --- dye (paint) ---
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dye.write.fbo);
+    gl.viewport(0, 0, dye.write.w, dye.write.h);
+    bindTex(0, dye.read.tex, U_SPLAT.uTarget);
+    gl.uniform1f(U_SPLAT.uPaint, 1.0);
+    gl.uniform1f(U_SPLAT.uAmount, s.amount);
+    gl.uniform3f(U_SPLAT.uColor, s.rgb[0], s.rgb[1], s.rgb[2]);
+    gl.uniform2f(U_SPLAT.uPoint, s.x, s.y);
+    gl.uniform1f(U_SPLAT.uRadius, CFG.SPLAT_RADIUS * 1.05 * s.radiusScale);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    dye.swap();
+  }
+  splatQueue.length = 0;
+  gl.bindVertexArray(null);
+}
+
+function stepSim(dt) {
+  applySplats();
+
+  // curl
+  gl.useProgram(P_CURL);
+  gl.uniform2f(uniforms(P_CURL, ['uTexelSize']).uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  bindTex(0, velocity.read.tex, U_CURL.uVelocity);
+  blit(curl);
+
+  // curl confinement (fixed) + gravity
+  gl.useProgram(P_VORT);
+  gl.uniform2f(uniforms(P_VORT, ['uTexelSize']).uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  bindTex(0, velocity.read.tex, U_VORT.uVelocity);
+  bindTex(1, curl.tex, U_VORT.uCurl);
+  gl.uniform1f(U_VORT.uCurlStrength, CFG.CURL_STRENGTH);
+  gl.uniform1f(U_VORT.uDt, dt);
+  gl.uniform1f(U_VORT.uGravity, gravityMode === 1 ? CFG.GROUND_GRAVITY : (gravityMode === 2 ? -CFG.GROUND_GRAVITY : 0));
+  blit(velocity.write);
+  velocity.swap();
+
+  // viscosity (diffusion)
+  if (viscosity > 0.01) {
+    gl.useProgram(P_VISC);
+    gl.uniform2f(uniforms(P_VISC, ['uTexelSize']).uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+    const alpha = 1.0 / Math.max(0.002, viscosity) - 1.0;
+    gl.uniform1f(U_VISC.uAlpha, alpha);
+    // thick fluids need more diffusion passes to actually look thick
+    const visIter = 1 + Math.round(viscosity * (CFG.VISC_ITER + 4));
+    for (let i = 0; i < visIter; i++) {
+      bindTex(0, velocity.read.tex, U_VISC.uVelocity);
+      blit(velocity.write);
+      velocity.swap();
+    }
+  }
+
+  // divergence
+  gl.useProgram(P_DIV);
+  gl.uniform2f(uniforms(P_DIV, ['uTexelSize']).uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  bindTex(0, velocity.read.tex, U_DIV.uVelocity);
+  blit(divergence);
+
+  // clear pressure
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pressure.read.fbo);
+  gl.viewport(0, 0, pressure.read.w, pressure.read.h);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pressure.write.fbo);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  // pressure solve (Jacobi)
+  gl.useProgram(P_PRESS);
+  gl.uniform2f(uniforms(P_PRESS, ['uTexelSize']).uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  for (let i = 0; i < CFG.PRESSURE_ITER; i++) {
+    bindTex(0, pressure.read.tex, U_PRESS.uPressure);
+    bindTex(1, divergence.tex, U_PRESS.uDivergence);
+    bindTex(2, obstacleTex, U_PRESS.uObstacle);
+    blit(pressure.write);
+    pressure.swap();
+  }
+
+  // project: subtract pressure gradient -> divergence-free velocity
+  gl.useProgram(P_GRAD);
+  gl.uniform2f(uniforms(P_GRAD, ['uTexelSize']).uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  bindTex(0, pressure.read.tex, U_GRAD.uPressure);
+  bindTex(1, velocity.read.tex, U_GRAD.uVelocity);
+  bindTex(2, obstacleTex, U_GRAD.uObstacle);
+  blit(velocity.write);
+  velocity.swap();
+
+  // advect velocity
+  gl.useProgram(P_ADVECT);
+  gl.uniform2f(U_ADVECT.uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  gl.uniform1f(U_ADVECT.uDt, dt);
+  gl.uniform1f(U_ADVECT.uDissipation, CFG.VEL_DISSIPATION);
+  bindTex(0, velocity.read.tex, U_ADVECT.uVelocity);
+  bindTex(1, velocity.read.tex, U_ADVECT.uSource);
+  bindTex(2, obstacleTex, U_ADVECT.uObstacle);
+  blit(velocity.write);
+  velocity.swap();
+
+  // advection wrote velocity back INTO the walls - re-apply the solid mask,
+  // otherwise the dye advection drags colour straight through the drawing.
+  gl.useProgram(P_MASK);
+  gl.uniform2f(uniforms(P_MASK, ['uTexelSize']).uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  bindTex(0, velocity.read.tex, U_MASK.uSource);
+  bindTex(1, obstacleTex, U_MASK.uObstacle);
+  blit(velocity.write);
+  velocity.swap();
+
+  // advect dye
+  gl.useProgram(P_ADVECT);
+  gl.uniform2f(U_ADVECT.uTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+  gl.uniform1f(U_ADVECT.uDt, dt);
+  gl.uniform1f(U_ADVECT.uDissipation, CFG.DYE_DISSIPATION);
+  bindTex(0, velocity.read.tex, U_ADVECT.uVelocity);
+  bindTex(1, dye.read.tex, U_ADVECT.uSource);
+  bindTex(2, obstacleTex, U_ADVECT.uObstacle);
+  blit(dye.write);
+  dye.swap();
+
+  // and keep the dye itself out of the solid cells
+  gl.useProgram(P_MASK);
+  gl.uniform2f(uniforms(P_MASK, ['uTexelSize']).uTexelSize, dye.texelSizeX, dye.texelSizeY);
+  bindTex(0, dye.read.tex, U_MASK.uSource);
+  bindTex(1, obstacleTex, U_MASK.uObstacle);
+  blit(dye.write);
+  dye.swap();
+
+  // dye diffusion - the COLOUR itself thickens as viscosity rises
+  if (viscosity > 0.45) {
+    gl.useProgram(P_DIFFUSE);
+    gl.uniform2f(uniforms(P_DIFFUSE, ['uTexelSize']).uTexelSize, dye.texelSizeX, dye.texelSizeY);
+    gl.uniform1f(U_DIFFUSE.uAlpha, (viscosity - 0.45) / 0.55 * 14.0);
+    for (let i = 0; i < 2; i++) {
+      bindTex(0, dye.read.tex, U_DIFFUSE.uSource);
+      blit(dye.write);
+      dye.swap();
+    }
+  }
+}
+
+function renderSim() {
+  gl.useProgram(P_DISPLAY);
+  gl.uniform2f(U_DISPLAY.uTexelSize, dye.texelSizeX, dye.texelSizeY);
+  gl.uniform1f(U_DISPLAY.uVectors, showVectors ? 1 : 0);
+  gl.uniform1f(U_DISPLAY.uAspect, glCanvas.width / glCanvas.height);
+  gl.uniform1f(U_DISPLAY.uVisc, viscosity);
+  gl.uniform1f(U_DISPLAY.uStep, timestep);
+  bindTex(0, dye.read.tex, U_DISPLAY.uDye);
+  bindTex(1, velocity.read.tex, U_DISPLAY.uVelocity);
+  blit(null);
+}
+
+// ============================================================================
+//  AUDIO
+// ============================================================================
+const Audio2 = (function () {
+  let ac = null, master = null, pourGain = null, pourFilter = null, pourSrc = null;
+  function init() {
+    if (ac) return;
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain();
+      master.gain.value = 0.5;
+      master.connect(ac.destination);
+      // continuous pour bed: filtered noise
+      const len = ac.sampleRate * 2;
+      const buf = ac.createBuffer(1, len, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.35;
+      pourSrc = ac.createBufferSource();
+      pourSrc.buffer = buf; pourSrc.loop = true;
+      pourFilter = ac.createBiquadFilter();
+      pourFilter.type = 'bandpass'; pourFilter.frequency.value = 520; pourFilter.Q.value = 1.1;
+      pourGain = ac.createGain(); pourGain.gain.value = 0;
+      pourSrc.connect(pourFilter); pourFilter.connect(pourGain); pourGain.connect(master);
+      pourSrc.start();
+    } catch (e) { ac = null; }
+  }
+  function resume() { if (ac && ac.state === 'suspended') ac.resume(); }
+  function pour(amount) {
+    if (!ac) return;
+    pourGain.gain.setTargetAtTime(Math.min(0.16, amount * 0.16), ac.currentTime, 0.05);
+    pourFilter.frequency.setTargetAtTime(380 + amount * 900, ac.currentTime, 0.06);
+  }
+  function stopPour() { if (ac) pourGain.gain.setTargetAtTime(0, ac.currentTime, 0.08); }
+  function tone(freq, dur, type, vol, slideTo) {
+    if (!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, ac.currentTime + dur);
+    g.gain.setValueAtTime(0.0001, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(vol || 0.12, ac.currentTime + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(master); o.start(); o.stop(ac.currentTime + dur + 0.02);
+  }
+  function chime() {
+    tone(784, 0.55, 'sine', 0.16);
+    setTimeout(() => tone(1175, 0.55, 'sine', 0.11), 70);
+    setTimeout(() => tone(1568, 0.6, 'triangle', 0.07), 145);
+  }
+  function sweep() { tone(180, 0.5, 'sawtooth', 0.08, 640); }
+  function alarm() { tone(440, 0.16, 'square', 0.07); setTimeout(() => tone(330, 0.2, 'square', 0.07), 180); }
+  return { init, resume, pour, stopPour, tone, chime, sweep, alarm };
+})();
+
+// ============================================================================
+//  LEVEL / GAME LOGIC
+// ============================================================================
+// One open space. Clear it and start again.
+function resetArena() {
+  obstacles = [];
+  strokes = [];
+  currentStroke = null;
+  maskDirty = true;
+  buildMask();
+  clearSim();
+  seedFluid();
+
+}
+
+function clearSim() {
+  const wipe = (t) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+    gl.viewport(0, 0, t.w, t.h);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  };
+  wipe(velocity.read); wipe(velocity.write);
+  wipe(dye.read); wipe(dye.write);
+  wipe(pressure.read); wipe(pressure.write);
+  wipe(divergence); wipe(curl);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+function seedFluid() {
+  // a few slow coloured blobs so the title/level never starts empty
+  const seeds = [
+    { x: 0.30, y: 0.42, c: [0.08, 0.42, 0.40] },
+    { x: 0.66, y: 0.58, c: [0.36, 0.13, 0.38] },
+    { x: 0.50, y: 0.30, c: [0.13, 0.34, 0.11] }
+  ];
+  for (const s of seeds) {
+    splat(s.x, 1 - s.y, 0, 0, s.c, 0.40);
+    splat(s.x + 0.02, 1 - s.y + 0.01, 40, -30, s.c, 0.22);
+  }
+}
+
+
+
+// no levels — the space just keeps going
+
+// ============================================================================
+//  SCREENS
+// ============================================================================
+const screens = ['title'];
+function show(id) {
+  for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
+}
+function hideAllScreens() { for (const s of screens) document.getElementById(s).classList.add('hidden'); }
+
+// ============================================================================
+//  INPUT
+// ============================================================================
+function screenToSim(e) {
+  const rect = glCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = 1 - (e.clientY - rect.top) / rect.height;
+  return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+}
+function down(e) {
+  if (mode !== 'playing') return;
+  e.preventDefault();
+  Audio2.init(); Audio2.resume();
+  const p = screenToSim(e);
+  mouse.x = p.x; mouse.y = p.y;
+  mouse.px = p.x; mouse.py = p.y;
+  mouse.down = true; mouse.moved = 0;
+  mouse.jet = !!(e.button === 2 || e.ctrlKey);
+  if (drawMode) startStroke();
+}
+function move(e) {
+  const p = screenToSim(e);
+  mouse.x = p.x; mouse.y = p.y;
+  if (mouse.down) {
+    mouse.moved += Math.abs(p.x - mouse.px) + Math.abs(p.y - mouse.py);
+    if (drawMode) extendStroke();
+  }
+}
+function up(e) {
+  if (!mouse.down) return;
+  mouse.down = false;
+  if (drawMode) endStroke();
+  Audio2.stopPour();
+}
+glCanvas.addEventListener('mousedown', down);
+window.addEventListener('mousemove', move);
+window.addEventListener('mouseup', up);
+glCanvas.addEventListener('contextmenu', e => e.preventDefault());
+glCanvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  down({ clientX: t.clientX, clientY: t.clientY, button: 0, preventDefault: () => {} });
+}, { passive: false });
+glCanvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  move({ clientX: t.clientX, clientY: t.clientY });
+}, { passive: false });
+glCanvas.addEventListener('touchend', (e) => { e.preventDefault(); up({}); }, { passive: false });
+
+function pickFluid(i) {
+  selectedFluid = Math.max(0, Math.min(SWATCHES.length - 1, i));
+  document.getElementById('hFluid').textContent = SWATCHES[selectedFluid].name;
+  const els = document.querySelectorAll('#swatches .sw');
+  for (let k = 0; k < els.length; k++) els[k].classList.toggle('sel', k === selectedFluid);
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === '1') pickFluid(0);
+  else if (e.key === '2') pickFluid(1);
+  else if (e.key === '3') pickFluid(2);
+  else if (e.key === '4') pickFluid(3);
+  else if (e.key === '5') pickFluid(4);
+  else if (e.key === '6') pickFluid(5);
+  else if (e.key === 'v' || e.key === 'V') toggleVectors();
+  else if (e.key === 'g' || e.key === 'G') cycleGravity();
+  else if (e.key === 'r' || e.key === 'R') { if (mode === 'playing') resetArena(); }
+  else if (e.code === 'Space') { e.preventDefault(); mouse.jet = true; Audio2.init(); Audio2.resume(); }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') mouse.jet = false;
+});
+
+function toggleVectors() {
+  showVectors = !showVectors;
+  document.getElementById('btnVec').classList.toggle('on', showVectors);
+}
+function cycleGravity() {
+  gravityMode = (gravityMode + 1) % 3;
+  document.getElementById('btnGrav').textContent =
+    'GRAVITY: ' + (gravityMode === 1 ? 'DOWN' : gravityMode === 0 ? 'OFF' : 'UP');
+}
+
+// ============================================================================
+//  UI WIRING
+// ============================================================================
+(function buildSwatches() {
+  const box = document.getElementById('swatches');
+  // the ALL swatch is built from the palette, so new colours join it for free
+  const stops = PALETTE.map(c => c.css).concat([PALETTE[0].css]);
+  for (let i = 0; i < SWATCHES.length; i++) {
+    const s = SWATCHES[i];
+    const d = document.createElement('div');
+    d.className = 'sw';
+    d.style.background = s.special
+      ? 'conic-gradient(' + stops.join(',') + ')'
+      : s.css;
+    d.title = s.name;
+    d.addEventListener('click', () => pickFluid(i));
+    box.appendChild(d);
+  }
+  pickFluid(0);
+})();
+
+document.getElementById('btnPlay').addEventListener('click', () => {
+  Audio2.init(); Audio2.resume();
+  hideAllScreens(); resetArena(); mode = 'playing';
+});
+document.getElementById('btnRestart').addEventListener('click', () => {
+  if (mode === 'playing') resetArena();
+});
+document.getElementById('btnMenu').addEventListener('click', () => {
+  mode = 'title'; show('title'); Audio2.stopPour();
+});
+// ---- drawing toolbar ----
+(function buildWidthButtons() {
+  const box = document.getElementById('widths');
+  for (let i = 0; i < BRUSHES.length; i++) {
+    const b = document.createElement('button');
+    b.className = 'wt';
+    b.title = 'Thickness ' + (i + 1);
+    const bar = document.createElement('i');
+    // the bar grows from small on the left to big on the right
+    bar.style.height = (5 + i * 4) + 'px';
+    b.appendChild(bar);
+    b.addEventListener('click', () => { brushIndex = i; syncTools(); });
+    box.appendChild(b);
+  }
+})();
+
+function syncTools() {
+  document.getElementById('btnPencil').classList.toggle('on', drawMode);
+  document.getElementById('toolRow').classList.toggle('hidden', !drawMode);
+  document.getElementById('btnEraser').classList.toggle('on', drawMode && drawTool === 'eraser');
+  const wts = document.querySelectorAll('#widths .wt');
+  for (let i = 0; i < wts.length; i++) wts[i].classList.toggle('on', i === brushIndex);
+}
+
+document.getElementById('btnPencil').addEventListener('click', () => {
+  drawMode = !drawMode;
+  drawTool = 'pencil';
+  if (!drawMode) { currentStroke = null; mouse.down = false; }
+  syncTools();
+});
+document.getElementById('btnEraser').addEventListener('click', () => {
+  drawTool = (drawTool === 'eraser') ? 'pencil' : 'eraser';
+  syncTools();
+});
+
+document.getElementById('btnVec').addEventListener('click', toggleVectors);
+document.getElementById('btnGrav').addEventListener('click', cycleGravity);
+document.getElementById('inVisc').addEventListener('input', (e) => {
+  viscosity = e.target.value / 100;
+  document.getElementById('hVisc').textContent = viscosity.toFixed(2);
+});
+document.getElementById('inStep').addEventListener('input', (e) => {
+  timestep = parseInt(e.target.value, 10) / 100;
+  document.getElementById('hStep').textContent = '\u00d7' + timestep.toFixed(2);
+});
+
+// ============================================================================
+//  2D OVERLAY
+// ============================================================================
+function drawOverlay(dt) {
+  const W = ovCanvas.width, H = ovCanvas.height;
+  octx.clearRect(0, 0, W, H);
+  if (mode === 'title') return;
+
+  // the user's drawing sits on top of the fluid as solid walls
+  if (artCanvas && strokes.length) octx.drawImage(artCanvas, 0, 0, W, H);
+
+  // brush preview while drawing
+  if (drawMode && mode === 'playing') {
+    const cx = mouse.x * W, cy = (1 - mouse.y) * H;
+    const r = Math.max(3, BRUSHES[brushIndex] * W / 2);
+    octx.strokeStyle = drawTool === 'eraser' ? 'rgba(255,107,107,0.8)' : 'rgba(72,228,210,0.85)';
+    octx.lineWidth = 1.5;
+    octx.setLineDash([4, 4]);
+    octx.beginPath(); octx.arc(cx, cy, r, 0, Math.PI * 2); octx.stroke();
+    octx.setLineDash([]);
+  }
+
+  // pour cursor
+  if (mouse.down && !drawMode && mode === 'playing') {
+    const cx = mouse.x * W, cy = (1 - mouse.y) * H;
+    const r = (mouse.jet ? 34 + Math.sin(elapsed * 26) * 6 : 24) * (W / 1280);
+    const g = octx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, SWATCHES[selectedFluid].special ? '#dff6ff' : SWATCHES[selectedFluid].css);
+    g.addColorStop(0.45, 'rgba(255,255,255,0.16)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    octx.globalAlpha = mouse.jet ? 0.95 : 0.5;
+    octx.fillStyle = g;
+    octx.beginPath(); octx.arc(cx, cy, r, 0, Math.PI * 2); octx.fill();
+    octx.globalAlpha = 1;
+  }
+}
+
+// ============================================================================
+//  RESIZE
+// ============================================================================
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(320, Math.floor(window.innerWidth * dpr));
+  const h = Math.max(240, Math.floor(window.innerHeight * dpr));
+  glCanvas.width = w; glCanvas.height = h;
+  ovCanvas.width = w; ovCanvas.height = h;
+  createSim();
+  initArtCanvases();
+  repaintArt();
+  if (mode === 'playing' || mode === 'title') seedFluid();
+}
+window.addEventListener('resize', resize);
+
+// ============================================================================
+//  MAIN LOOP
+// ============================================================================
+function startStroke() {
+  currentStroke = {
+    pts: [[mouse.x, 1 - mouse.y]],
+    erase: drawTool === 'eraser',
+    w: BRUSHES[brushIndex]
+  };
+  strokes.push(currentStroke);
+  maskDirty = true;
+}
+function extendStroke() {
+  if (!currentStroke) return;
+  const p = [mouse.x, 1 - mouse.y];
+  const last = currentStroke.pts[currentStroke.pts.length - 1];
+  if (Math.hypot(p[0] - last[0], p[1] - last[1]) > 0.0016) {
+    currentStroke.pts.push(p);
+    maskDirty = true;
+  }
+}
+function endStroke() {
+  currentStroke = null;
+}
+
+function pour(dt) {
+  if (drawMode) { Audio2.stopPour(); return; }   // drawing takes priority
+  // holding SPACE alone still jets from the last pointer position
+  if (!mouse.down && !mouse.jet) { Audio2.stopPour(); return; }
+  const dx = (mouse.x - mouse.px);
+  const dy = (mouse.y - mouse.py);
+  const speed = Math.hypot(dx, dy);
+  const ac = activeColour();
+  const p = ac.c;
+  const force = CFG.SPLAT_FORCE * (mouse.jet ? 1.9 : 1);
+  const fx = dx * force;
+  const fy = dy * force;
+  const amount = Math.min(1, 0.40 + speed * 8);
+  // The ALL swatch paints each colour at its own spot around the nozzle, so
+  // they land side by side as a rainbow instead of overwriting each other.
+  let ox = 0, oy = 0, rScale = 1, weight = 1;
+  if (ac.all) {
+    const ang = (ac.idx / PALETTE.length) * Math.PI * 2;
+    ox = Math.cos(ang) * 0.019;
+    oy = Math.sin(ang) * 0.019;
+    rScale = 0.78;
+    weight = 0.95;
+  }
+  splat(mouse.x + ox, mouse.y + oy, fx, fy, p.rgb, amount * weight, rScale);
+  if (mouse.jet) {
+    // PRESSURE JET - 5x the fluid, ejected outward in a ring so it really
+    // blasts the surrounding fluid away instead of just adding a blob.
+    const JET_SPLATS = 5;
+    const JET_RADIAL = 300;
+    const JET_RING = 0.0050;
+    for (let k = 0; k < JET_SPLATS; k++) {
+      const ja = (k / JET_SPLATS) * Math.PI * 2 + elapsed * 1.6;
+      const ca = Math.cos(ja), sa = Math.sin(ja);
+      splat(
+        mouse.x + ox + ca * JET_RING,
+        mouse.y + oy + sa * JET_RING,
+        fx * 0.45 + ca * JET_RADIAL,
+        fy * 0.45 + sa * JET_RADIAL,
+        p.rgb, amount * 0.40 * weight, rScale * 0.85
+      );
+    }
+  }
+  Audio2.pour(Math.min(1, amount) * (mouse.jet ? 1.7 : 1));
+  mouse.px = mouse.x; mouse.py = mouse.y;
+}
+
+const origRAF = window.requestAnimationFrame.bind(window);
+let lastT = performance.now();
+function frame(now) {
+ try {
+  let dt = (now - lastT) / 1000;
+  lastT = now;
+  if (!isFinite(dt) || dt < 0) dt = 0;
+  dt = Math.min(dt, 0.05);
+  elapsed += dt;
+
+  fpsAcc += dt; fpsCount++;
+  if (fpsAcc >= 0.5) { fps = Math.round(fpsCount / fpsAcc); fpsAcc = 0; fpsCount = 0; }
+
+  if (mode === 'playing') {
+    if (!drawMode) pour(dt);
+  } else if (mode === 'title') {
+    // lazy ambient swirl on the title screen
+    if (Math.random() < 0.26) {
+      const a = Math.random() * Math.PI * 2;
+      const rr = 0.05 + Math.random() * 0.26;
+      const x = 0.5 + Math.cos(a) * rr, y = 0.5 + Math.sin(a) * rr;
+      const c = PALETTE[(Math.random() * PALETTE.length) | 0];
+      splat(x, 1 - y, Math.cos(a + 1.57) * 150, Math.sin(a + 1.57) * 150, c.rgb, 0.30);
+    }
+  }
+
+  // rebuild the drawing + solid mask if the user changed it
+  if (maskDirty) { repaintArt(); repaintMask(); }
+
+  // the timestep knob scales the whole simulation clock
+  stepSim(Math.min(dt * timestep, 0.09));
+
+  renderSim();
+  drawOverlay(dt);
+ } catch (e) {
+   rafErrors.push({ msg: e.message, stack: e.stack });
+   if (rafErrors.length > 6) rafErrors.shift();
+   fatal('RUNTIME ERROR<br><br><span style="font-size:10px;color:#7e9bb2">' + e.message + '</span>');
+ }
+  origRAF(frame);
+}
+
+// ============================================================================
+//  BOOT
+// ============================================================================
+resize();
+obstacles = [];
+seedFluid();
+show('title');
+origRAF(frame);
+
+// debug / test hooks
+window._game = {
+  get mode() { return mode; },
+  get fps() { return fps; },
+  get showVectors() { return showVectors; },
+  get gravityMode() { return gravityMode; },
+  get strokes() { return strokes; },
+  get maskInfo() { return { n: maskSolidCount, top: maskTop, bottom: maskBottom, h: MASK_H, w: MASK_W }; },
+  get drawMode() { return drawMode; },
+  get drawTool() { return drawTool; },
+  get brushIndex() { return brushIndex; },
+  setDraw: function (on) { drawMode = !!on; syncTools(); },
+  setTool: function (t) { drawTool = t; syncTools(); },
+  setBrush: function (i) { brushIndex = i; syncTools(); },
+  get viscosity() { return viscosity; },
+  resetArena: resetArena,
+  start: function () {
+    hideAllScreens(); resetArena(); mode = 'playing';
+  },
+  pour: function (x, y, dx, dy) { splat(x, 1 - y, dx || 0, dy || 0, [0.18, 0.90, 0.84], 0.7); },
+  setPointer: function (x, y, downFlag) {
+    mouse.x = x; mouse.y = y; mouse.px = x; mouse.py = y; mouse.down = !!downFlag;
+  },
+  drag: function (x, y) { mouse.x = x; mouse.y = y; mouse.down = true; },
+  rafErrors: rafErrors
+};
+})();
+</script>
+</body>
+</html>

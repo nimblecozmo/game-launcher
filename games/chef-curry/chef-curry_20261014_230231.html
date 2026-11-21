@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Chef Curry — A Basketball Shooter v7 GUARANTEED SCORE</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    color: #fff;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #game {
+    display: block;
+    max-width: 100%;
+    max-height: 100vh;
+    image-rendering: -webkit-optimize-contrast;
+    cursor: pointer;
+  }
+
+  /* ===== Title screen ===== */
+  #title-screen {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, #1D428A 0%, #0a1830 60%, #000 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    overflow: hidden;
+  }
+  #title-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,199,44,0.18) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(255,199,44,0.12) 0%, transparent 40%);
+    pointer-events: none;
+  }
+  .title-content {
+    text-align: center;
+    z-index: 1;
+  }
+  #title-screen h1 {
+    font-size: clamp(60px, 12vw, 130px);
+    font-weight: 900;
+    color: #FFC72C;
+    letter-spacing: 0.08em;
+    text-shadow:
+      0 0 30px rgba(255,199,44,0.6),
+      0 0 60px rgba(255,199,44,0.3),
+      4px 4px 0 #1D428A,
+      -4px -4px 0 #fff;
+    margin: 0 0 16px 0;
+    line-height: 1;
+  }
+  .subtitle {
+    font-size: clamp(16px, 2.5vw, 28px);
+    color: #fff;
+    letter-spacing: 0.4em;
+    margin: 0 0 60px 0;
+    font-weight: 300;
+    text-transform: lowercase;
+    opacity: 0.85;
+  }
+  #play-btn {
+    background: #FFC72C;
+    color: #1D428A;
+    border: none;
+    padding: 24px 90px;
+    font-size: clamp(24px, 4vw, 40px);
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    border-radius: 12px;
+    box-shadow:
+      0 8px 0 #b88a1f,
+      0 12px 20px rgba(0,0,0,0.5),
+      inset 0 -4px 0 rgba(0,0,0,0.1),
+      inset 0 4px 0 rgba(255,255,255,0.25);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  #play-btn:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 10px 0 #b88a1f,
+      0 14px 24px rgba(0,0,0,0.6),
+      inset 0 -4px 0 rgba(0,0,0,0.1),
+      inset 0 4px 0 rgba(255,255,255,0.25);
+  }
+  #play-btn:active {
+    transform: translateY(4px);
+    box-shadow:
+      0 4px 0 #b88a1f,
+      0 6px 12px rgba(0,0,0,0.4),
+      inset 0 -4px 0 rgba(0,0,0,0.1),
+      inset 0 4px 0 rgba(255,255,255,0.25);
+  }
+
+  /* ===== Back button (in game) ===== */
+  #back-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: 2px solid #FFC72C;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 6px;
+    z-index: 5;
+    display: none;
+    transition: all 0.2s;
+  }
+  #back-btn:hover {
+    background: #FFC72C;
+    color: #1D428A;
+  }
+
+  /* ===== Instruction banner ===== */
+  .instr {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: #FFC72C;
+    font-size: clamp(16px, 2.4vw, 26px);
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8);
+    z-index: 5;
+    display: none;
+    pointer-events: none;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.98); }
+  }
+</style>
+</head>
+<body>
+  <div id="container">
+    <canvas id="game" width="1280" height="720"></canvas>
+    <div id="title-screen">
+      <div class="title-content">
+        <h1>CHEF CURRY</h1>
+        <p class="subtitle">a basketball shooter</p>
+        <p style="position:absolute;bottom:8px;right:12px;font-size:11px;color:#FFD700;opacity:0.6;font-family:monospace;">v7.0 — GUARANTEED SCORE</p>
+        <button id="play-btn">PLAY</button>
+      </div>
+    </div>
+    <button id="back-btn">← BACK</button>
+    <div id="instr-vertical"   class="instr">CLICK ANYWHERE TO SET POWER</div>
+    <div id="instr-horizontal" class="instr">CLICK ANYWHERE TO SET ANGLE</div>
+    <div id="instr-result"     class="instr">CLICK ANYWHERE TO SHOOT AGAIN</div>
+  </div>
+
+  <script>
+    // ============================================================
+    //   CHEF CURRY — A BASKETBALL SHOOTER
+    //   Two-phase aiming: vertical (power) → horizontal (angle)
+    // ============================================================
+
+    // ---- Canvas setup ----
+    const canvas = document.getElementById('game');
+    const ctx    = canvas.getContext('2d');
+    const W = 1280, H = 720;
+    canvas.width = W; canvas.height = H;
+
+    // ---- Game state ----
+    let state = 'title';                  // 'title' | 'vertical' | 'horizontal' | 'shooting' | 'result'
+    let score = 0, attempts = 0;
+    let streak = 0;           // consecutive "in the zone" shots
+    let bestStreak = 0;       // best streak this session
+
+    // Vertical meter (max height) — wide green zone for forgiving gameplay.
+    // Any vProgress in this range, COMBINED with the right hProgress (shown in
+    // the horizontal meter), will produce a made 3-pointer.
+    let vProgress = 0, vDir = 1;
+    const V_SPEED = 0.008;                // per 60-fps frame (slow for easy timing)
+    const V_GOOD  = { min: 0.65, max: 0.92 };   // wide green zone (~27% of bar)
+
+    // Horizontal meter (max distance) — green zone shown dynamically based on locked v.
+    let hProgress = 0, hDir = 1;
+    const H_SPEED = 0.008;                // slow for easy timing
+    const H_GOOD  = { min: 0.30, max: 0.70 };   // wide range to allow different h values
+
+    // Ball & net
+    let ball = null, ballTrail = [];
+    let netSwing = 0;                     // 0..1, decays each frame after a made shot
+    let sparks = [];                      // particle effect on score
+
+    // Court positions
+    const STEPH_X        = 280;
+    const STEPH_FEET_Y   = 540;
+    const HAND_X_OFFSET  = 50;
+    const HAND_Y_OFFSET  = 250;
+    const HOOP_X         = 935;            // backboard pole position (moved left from 1080)
+    const HOOP_Y         = 220;            // rim height
+    const BACKBOARD_CX   = HOOP_X - 74;    // backboard horizontal center (axis for flip)
+    const RIM_X          = BACKBOARD_CX - 39;  // rim center, mirrored across backboard (was HOOP_X - 35, to the right)
+    const RIM_R          = 40;
+
+    // ---- Input ----
+    document.getElementById('play-btn').addEventListener('click', startGame);
+    document.getElementById('back-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      backToTitle();
+    });
+    canvas.addEventListener('click', handleClick);
+
+    function startGame() {
+      document.getElementById('title-screen').style.display = 'none';
+      document.getElementById('back-btn').style.display = 'block';
+      resetShot();
+      state = 'vertical';
+      showInstr('vertical');
+    }
+    function backToTitle() {
+      document.getElementById('title-screen').style.display = 'flex';
+      document.getElementById('back-btn').style.display = 'none';
+      hideAllInstr();
+      state = 'title';
+      ball = null; sparks = []; netSwing = 0;
+    }
+    function resetShot() {
+      vProgress = 0; vDir = 1;
+      hProgress = 0; hDir = 1;
+      ball = null; ballTrail = [];
+      netSwing = 0; sparks = [];
+    }
+    function handleClick() {
+      if (state === 'vertical') {
+        state = 'horizontal';
+        showInstr('horizontal');
+      } else if (state === 'horizontal') {
+        attempts++;
+        startShot();
+      } else if (state === 'result') {
+        resetShot();
+        state = 'vertical';
+        showInstr('vertical');
+      }
+    }
+    function startShot() {
+      // Use the ACTUAL vProgress and hProgress values from the meters.
+      // The user clicked in the green zone based on the visual feedback,
+      // so the trajectory should match the predicted path.
+      const vy = -vProgress * 16.0;       // upward velocity based on POWER
+      const vx = 5.5 + hProgress * 12;    // rightward velocity based on ANGLE
+      const startX = STEPH_X + HAND_X_OFFSET;
+      const startY = STEPH_FEET_Y - HAND_Y_OFFSET;
+      ball = {
+        x: startX, y: startY,
+        prevX: startX, prevY: startY,
+        vx, vy,
+        rotation: 0,
+        // Store the display values for the result screen
+        displayPower: vProgress,
+        displayAngle: hProgress
+      };
+      ballTrail = [];
+      state = 'shooting';
+      hideAllInstr();
+    }
+
+    // Compute the predicted trajectory of the ball for a given vProgress/hProgress.
+    // Returns an array of {x, y} points.
+    function predictTrajectory(v, h) {
+      const vy = -v * 16.0;
+      const vx = 5.5 + h * 12;
+      let x = STEPH_X + HAND_X_OFFSET;
+      let y = STEPH_FEET_Y - HAND_Y_OFFSET;
+      let pvy = vy;
+      const points = [{x, y}];
+      for (let t = 0; t < 120; t++) {
+        pvy += 0.5;
+        x += vx;
+        y += pvy;
+        points.push({x, y});
+        if (y > STEPH_FEET_Y + 50 || x > W + 50) break;
+      }
+      return points;
+    }
+
+    // Check if a trajectory passes through the rim opening.
+    // Returns true if any point comes within 35px of the rim center while moving down.
+    function trajectoryScores(points) {
+      for (let i = 1; i < points.length; i++) {
+        const p1 = points[i - 1], p2 = points[i];
+        // Check segment vs rim circle
+        if (lineCircleIntersect(p1.x, p1.y, p2.x, p2.y, RIM_X, HOOP_Y, 35)) {
+          // Make sure ball is going down and past the rim x
+          if (p2.y > p1.y && p2.x > RIM_X - 30 && p2.x < RIM_X + 30) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // For a given hProgress, find the vProgress that makes the ball pass through the rim.
+    // Uses the SAME physics as the actual game (time-step, gravity 0.5/frame).
+    // Returns the best vProgress (0..1) or null if no valid value.
+    function solveVForTrajectory(h) {
+      const vx = 5.5 + h * 12;
+      // Ball starts at (STEPH_X + 50, STEPH_FEET_Y - 250) = (330, 290)
+      const startX = STEPH_X + HAND_X_OFFSET;
+      const startY = STEPH_FEET_Y - HAND_Y_OFFSET;
+      // We want to find vy_initial (the vertical velocity at launch) such that
+      // the ball passes through (RIM_X, HOOP_Y).
+      // Time to reach x = RIM_X: t_x = (RIM_X - startX) / vx
+      const tX = (RIM_X - startX) / vx;
+      if (tX <= 0) return null;
+      // y at time t (with gravity 0.5/frame, position uses t directly):
+      //   y(t) = startY + sum of vy for each frame
+      //   vy(t) = vy_init + 0.5 * t  (where t is the frame number, gravity is per frame)
+      //   y(t) = startY + vy_init * t + 0.25 * t * (t - 1)
+      //   (or equivalently: startY + vy_init * t + 0.5 * sum of (0..t-1) = startY + vy_init*t + 0.25*(t-1)*t)
+      // Set y(t) = HOOP_Y:
+      //   HOOP_Y = startY + vy_init * tX + 0.25 * tX * (tX - 1)
+      //   vy_init = (HOOP_Y - startY - 0.25*tX*(tX-1)) / tX
+      const dy = HOOP_Y - startY - 0.25 * tX * (tX - 1);
+      const vyInit = dy / tX;
+      // vProgress = -vyInit / 16.0 (since vy = -vProgress * 16.0)
+      const vProgress = -vyInit / 16.0;
+      if (vProgress < 0 || vProgress > 1) return null;
+      return vProgress;
+    }
+
+    // For a given vProgress, find the hProgress that makes the ball pass through the rim.
+    function solveHForTrajectory(v) {
+      const vy = -v * 16.0;
+      const startX = STEPH_X + HAND_X_OFFSET;
+      const startY = STEPH_FEET_Y - HAND_Y_OFFSET;
+      // vy(t) = vy + 0.5 * t
+      // y(t) = startY + vy*t + 0.25*t*(t-1)
+      // Set y(t) = HOOP_Y:
+      //   HOOP_Y = startY + vy*t + 0.25*t*(t-1)
+      //   0.25*t² + (vy - 0.25)*t + (startY - HOOP_Y) = 0
+      const a = 0.25;
+      const b = vy - 0.25;
+      const c = startY - HOOP_Y;
+      const disc = b*b - 4*a*c;
+      if (disc < 0) return null;
+      const t1 = (-b - Math.sqrt(disc)) / (2*a);
+      const t2 = (-b + Math.sqrt(disc)) / (2*a);
+      // We want the SECOND crossing (ball coming down), so t2 (the larger root)
+      const tX = Math.max(t1, t2);
+      if (tX <= 0) return null;
+      // vx = (RIM_X - startX) / tX
+      const vx = (RIM_X - startX) / tX;
+      // vx = 5.5 + h * 12 → h = (vx - 5.5) / 12
+      const hProgress = (vx - 5.5) / 12;
+      if (hProgress < 0 || hProgress > 1) return null;
+      return hProgress;
+    }
+    function showInstr(phase) {
+      hideAllInstr();
+      if (phase === 'vertical')   document.getElementById('instr-vertical').style.display   = 'block';
+      if (phase === 'horizontal') document.getElementById('instr-horizontal').style.display = 'block';
+      if (phase === 'result')     document.getElementById('instr-result').style.display     = 'block';
+    }
+    function hideAllInstr() {
+      document.getElementById('instr-vertical').style.display   = 'none';
+      document.getElementById('instr-horizontal').style.display = 'none';
+      document.getElementById('instr-result').style.display     = 'none';
+    }
+
+    // ---- Update ----
+    function update(dt) {
+      if (state === 'vertical') {
+        vProgress += vDir * V_SPEED * dt;
+        if (vProgress >= 1) { vProgress = 1; vDir = -1; }
+        if (vProgress <= 0) { vProgress = 0; vDir =  1; }
+      } else if (state === 'horizontal') {
+        hProgress += hDir * H_SPEED * dt;
+        if (hProgress >= 1) { hProgress = 1; hDir = -1; }
+        if (hProgress <= 0) { hProgress = 0; hDir =  1; }
+      } else if (state === 'shooting' && ball) {
+        ball.prevX = ball.x;
+        ball.prevY = ball.y;
+        // Time-based physics: gravity is ~30 px/s², scaled to 60fps base
+        ball.vy += 0.5 * dt;                     // gravity (time-based)
+        ball.x  += ball.vx * dt;
+        ball.y  += ball.vy * dt;
+        ball.rotation += ball.vx * 0.05 * dt;
+        ballTrail.push({ x: ball.x, y: ball.y });
+        if (ballTrail.length > 30) ballTrail.shift();
+
+        // Continuous collision with rim (line vs circle)
+        // Ball must be moving down AND its path must actually pass through the rim opening.
+        // The rim is 40px radius, ball is 13px radius, so effective opening is 27px.
+        // Use exactly 27 for tightest possible check.
+        if (lineCircleIntersect(ball.prevX, ball.prevY, ball.x, ball.y, RIM_X, HOOP_Y, 35)
+            && ball.vy > 0 && ball.x < RIM_X + 30) {
+          // SCORE! Snap ball to rim center, then let it fall through
+          ball.x = RIM_X;
+          ball.y = HOOP_Y;
+          state = 'result';
+          ball.scored = true;
+          // Check if "in the zone" — give 3 points for perfect, 1 for just score
+          const inGreenV = vProgress >= V_GOOD.min && vProgress <= V_GOOD.max;
+          const inGreenH = hProgress >= 0.35 && hProgress <= 0.65;
+          if (inGreenV && inGreenH) {
+            score += 3;
+            streak++;
+            if (streak > bestStreak) bestStreak = streak;
+          } else {
+            score += 1;
+            streak = 0;
+          }
+          netSwing = 1;
+          spawnSparks(ball.x, ball.y);
+          showInstr('result');
+          return;
+        }
+        // No backboard bounce — if the ball misses the rim, it just falls past
+        if (ball.y > STEPH_FEET_Y + 20 || ball.x < 0 || ball.x > W + 50) {
+          state = 'result';
+          ball.scored = false;
+          showInstr('result');
+        }
+      }
+      if (netSwing > 0) netSwing = Math.max(0, netSwing - 0.025);
+      // Sparks
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.vy += 0.2;
+        s.x  += s.vx;
+        s.y  += s.vy;
+        s.life -= 0.02;
+        if (s.life <= 0) sparks.splice(i, 1);
+      }
+    }
+    function lineCircleIntersect(x1, y1, x2, y2, cx, cy, r) {
+      const dx = x2 - x1, dy = y2 - y1;
+      const fx = x1 - cx, fy = y1 - cy;
+      const a  = dx * dx + dy * dy;
+      const b  = 2 * (fx * dx + fy * dy);
+      const c  = fx * fx + fy * fy - r * r;
+      if (a < 0.0001) return (c <= 0);
+      const disc = b * b - 4 * a * c;
+      if (disc < 0) return false;
+      const sq = Math.sqrt(disc);
+      const t1 = (-b - sq) / (2 * a);
+      const t2 = (-b + sq) / (2 * a);
+      // Segment intersects circle if either root lies in [0, 1]
+      return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+    }
+    function spawnSparks(x, y) {
+      for (let i = 0; i < 30; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 2 + Math.random() * 4;
+        sparks.push({
+          x, y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp - 2,
+          life: 1,
+          color: Math.random() < 0.5 ? '#FFD700' : '#FF6B1A'
+        });
+      }
+    }
+
+    // ============================================================
+    //   DRAW
+    // ============================================================
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      if (state === 'title') return;
+
+      drawBackground();
+      drawCrowd();
+      drawCourt();
+      drawHoop();
+      drawSteph();
+      drawBallOrHand();
+      drawSparks();
+      drawScore();
+      drawAimingReticle();
+
+      if (state === 'vertical')   drawVerticalMeter();
+      else if (state === 'horizontal') drawHorizontalMeter();
+      else if (state === 'result')     drawResult();
+    }
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, 500);
+      sky.addColorStop(0,   '#0a0a1f');
+      sky.addColorStop(0.5, '#1a1a3a');
+      sky.addColorStop(1,   '#3a2a1a');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, 500);
+      // Stadium lights
+      for (let i = 0; i < 12; i++) {
+        const x = 60 + i * 110;
+        const grad = ctx.createRadialGradient(x, 30, 0, x, 30, 220);
+        grad.addColorStop(0,   'rgba(255,240,180,0.45)');
+        grad.addColorStop(0.5, 'rgba(255,240,180,0.10)');
+        grad.addColorStop(1,   'rgba(255,240,180,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, 30, 220, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawCrowd() {
+      const standTop = 380, standBot = 500;
+      ctx.fillStyle = '#0a0a14';
+      ctx.fillRect(0, standTop, W, standBot - standTop);
+      // Crowd heads
+      for (let i = 0; i < 320; i++) {
+        const x = (i * 13 + 5) % W;
+        const row = i % 4;
+        const y = standTop + row * 28 + 8;
+        const r = 3 + (i % 3);
+        const colors = ['#1a1a2a', '#2a1a1a', '#1a2a1a', '#2a2a1a'];
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Bright shirts (Warriors fans)
+      for (let i = 0; i < 30; i++) {
+        const x = (i * 47 + 30) % W;
+        const y = standTop + (i % 3) * 25;
+        ctx.fillStyle = (i % 2 === 0)
+          ? 'rgba(29, 66, 138, 0.7)'
+          : 'rgba(255, 199, 44, 0.6)';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawCourt() {
+      const floorTop = 500;
+      // Hardwood
+      const wood = ctx.createLinearGradient(0, floorTop, 0, H);
+      wood.addColorStop(0,   '#b87333');
+      wood.addColorStop(0.5, '#a0682a');
+      wood.addColorStop(1,   '#7a4a1a');
+      ctx.fillStyle = wood;
+      ctx.fillRect(0, floorTop, W, H - floorTop);
+      // Horizontal plank lines
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 18; i++) {
+        const y = floorTop + i * 14;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      // Vertical plank divisions
+      for (let i = 0; i < 30; i++) {
+        const x = i * 50;
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+        ctx.beginPath(); ctx.moveTo(x, floorTop); ctx.lineTo(x, H); ctx.stroke();
+      }
+      // Light reflection on court
+      ctx.fillStyle = 'rgba(255,255,200,0.05)';
+      ctx.fillRect(0, floorTop, W, 50);
+
+      // Court lines
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      // Baseline only (no 3-point lines, no key, no free-throw circle)
+      ctx.beginPath(); ctx.moveTo(0, floorTop); ctx.lineTo(W, floorTop); ctx.stroke();
+    }
+
+    function drawSteph() {
+      const x = STEPH_X, feetY = STEPH_FEET_Y;
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(x, feetY + 4, 55, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Legs (shorts)
+      ctx.fillStyle = '#1D428A';
+      ctx.fillRect(x - 22, feetY - 95, 18, 90);
+      ctx.fillRect(x +  4, feetY - 95, 18, 90);
+      // Legs (skin)
+      ctx.fillStyle = '#a87850';
+      ctx.fillRect(x - 19, feetY - 50, 12, 50);
+      ctx.fillRect(x +  7, feetY - 50, 12, 50);
+      // Shoes
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 30, feetY - 8, 30, 12);
+      ctx.fillRect(x,      feetY - 8, 30, 12);
+      ctx.fillStyle = '#1D428A';
+      ctx.fillRect(x - 30, feetY - 4, 30, 4);
+      ctx.fillRect(x,      feetY - 4, 30, 4);
+      ctx.fillStyle = '#FFC72C';
+      ctx.fillRect(x - 28, feetY - 8, 6, 4);
+      ctx.fillRect(x +  2, feetY - 8, 6, 4);
+      // Body (jersey)
+      const bodyGrad = ctx.createLinearGradient(x - 38, feetY - 200, x + 38, feetY - 100);
+      bodyGrad.addColorStop(0,   '#15295c');
+      bodyGrad.addColorStop(0.5, '#1D428A');
+      bodyGrad.addColorStop(1,   '#15295c');
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.moveTo(x - 38, feetY - 100);
+      ctx.lineTo(x - 42, feetY - 200);
+      ctx.lineTo(x + 42, feetY - 200);
+      ctx.lineTo(x + 38, feetY - 100);
+      ctx.closePath();
+      ctx.fill();
+      // Gold side stripes (on the jersey, not the legs)
+      ctx.fillStyle = '#FFC72C';
+      ctx.fillRect(x - 38, feetY - 200, 4, 100);
+      ctx.fillRect(x + 34, feetY - 200, 4, 100);
+      // Jersey number
+      ctx.fillStyle = '#FFC72C';
+      ctx.font = 'bold 42px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('30', x, feetY - 145);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeText('30', x, feetY - 145);
+      // Arms (shooting pose — raised)
+      ctx.strokeStyle = '#a87850';
+      ctx.lineWidth = 16;
+      ctx.lineCap = 'round';
+      // Right arm holding ball
+      ctx.beginPath();
+      ctx.moveTo(x + 25, feetY - 195);
+      ctx.lineTo(x + 50, feetY - 250);
+      ctx.stroke();
+      // Left arm guiding
+      ctx.beginPath();
+      ctx.moveTo(x - 25, feetY - 195);
+      ctx.lineTo(x + 25, feetY - 250);
+      ctx.stroke();
+      // Wristbands
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'butt';
+      ctx.beginPath();
+      ctx.moveTo(x + 45, feetY - 240); ctx.lineTo(x + 50, feetY - 250);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + 20, feetY - 240); ctx.lineTo(x + 25, feetY - 250);
+      ctx.stroke();
+      // Head
+      ctx.fillStyle = '#a87850';
+      ctx.beginPath();
+      ctx.arc(x, feetY - 220, 26, 0, Math.PI * 2);
+      ctx.fill();
+      // Face shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath();
+      ctx.arc(x, feetY - 215, 26, 0, Math.PI);
+      ctx.fill();
+      // Hair
+      ctx.fillStyle = '#0a0a0a';
+      ctx.beginPath();
+      ctx.arc(x, feetY - 232, 24, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x - 6, feetY - 232, 10, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Headband
+      ctx.fillStyle = '#FFC72C';
+      ctx.fillRect(x - 26, feetY - 232, 52, 7);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 26, feetY - 228, 52, 2);
+      // Eyes
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x - 8, feetY - 222, 3, 2);
+      ctx.fillRect(x + 5, feetY - 222, 3, 2);
+    }
+
+    function drawBallOrHand() {
+      if (ball && (state === 'shooting' || state === 'result')) {
+        drawBall(ball.x, ball.y, ball.rotation, ballTrail);
+      } else {
+        drawBallInHand();
+      }
+    }
+    function drawBallInHand() {
+      const x = STEPH_X + HAND_X_OFFSET;
+      const y = STEPH_FEET_Y - HAND_Y_OFFSET;
+      drawBall(x, y, 0.3, []);
+    }
+    function drawBall(x, y, rotation, trail) {
+      // Trail
+      for (let i = 0; i < trail.length; i++) {
+        const t = i / trail.length;
+        ctx.fillStyle = `rgba(255,100,30,${t * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(trail[i].x, trail[i].y, 10 * t, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      // Ball body
+      const ballGrad = ctx.createRadialGradient(-4, -4, 0, 0, 0, 14);
+      ballGrad.addColorStop(0,   '#ffaa55');
+      ballGrad.addColorStop(0.5, '#ee6622');
+      ballGrad.addColorStop(1,   '#aa3300');
+      ctx.fillStyle = ballGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 13, 0, Math.PI * 2);
+      ctx.fill();
+      // Seams
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-13, 0); ctx.lineTo(13, 0); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 13, -Math.PI/2,  Math.PI/2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 13,  Math.PI/2,  Math.PI*1.5); ctx.stroke();
+      // Outline
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSparks() {
+      for (const s of sparks) {
+        ctx.fillStyle = s.color;
+        ctx.globalAlpha = s.life;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawHoop() {
+      const poleX = HOOP_X + 60;
+      // Pole
+      const poleGrad = ctx.createLinearGradient(poleX, HOOP_Y, poleX + 14, HOOP_Y);
+      poleGrad.addColorStop(0,   '#666');
+      poleGrad.addColorStop(0.5, '#888');
+      poleGrad.addColorStop(1,   '#444');
+      ctx.fillStyle = poleGrad;
+      ctx.fillRect(poleX, HOOP_Y, 14, STEPH_FEET_Y - HOOP_Y + 50);
+      // Arm
+      ctx.fillStyle = '#666';
+      ctx.fillRect(HOOP_X - 80, HOOP_Y + 10, 145, 8);
+      // Backboard
+      ctx.fillStyle = 'rgba(220,230,240,0.30)';
+      ctx.fillRect(HOOP_X - 80, HOOP_Y - 90, 12, 180);
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      ctx.fillRect(HOOP_X - 78, HOOP_Y - 88, 8, 176);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(HOOP_X - 80, HOOP_Y - 90, 12, 180);
+      // Shooter's square
+      ctx.strokeStyle = '#ff3333';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(HOOP_X - 76, HOOP_Y - 40, 6, 75);
+      // Rim
+      const rimGrad = ctx.createLinearGradient(RIM_X - RIM_R, HOOP_Y, RIM_X + RIM_R, HOOP_Y);
+      rimGrad.addColorStop(0,   '#cc4400');
+      rimGrad.addColorStop(0.5, '#FF6B1A');
+      rimGrad.addColorStop(1,   '#cc4400');
+      ctx.fillStyle = rimGrad;
+      ctx.beginPath();
+      ctx.ellipse(RIM_X, HOOP_Y, RIM_R, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#aa3300';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Net
+      const swing = netSwing * 12;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 14; i++) {
+        const t = i / 13;
+        const x1 = RIM_X - RIM_R + t * (RIM_R * 2);
+        const y1 = HOOP_Y + 6;
+        const x2 = RIM_X - (RIM_R - 12) + t * ((RIM_R - 12) * 2);
+        const y2 = y1 + 50 + swing;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      for (let j = 0; j < 4; j++) {
+        const t = j / 3;
+        const y  = HOOP_Y + 6 + t * 50 + swing * t;
+        const w  = (RIM_R - t * 12) * 2;
+        ctx.beginPath();
+        ctx.moveTo(RIM_X - w / 2, y);
+        ctx.lineTo(RIM_X + w / 2, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawAimingReticle() {
+      // Subtle reticle on Steph's hand during aiming
+      if (state !== 'vertical' && state !== 'horizontal') return;
+      const x = STEPH_X + HAND_X_OFFSET;
+      const y = STEPH_FEET_Y - HAND_Y_OFFSET;
+      ctx.strokeStyle = 'rgba(255, 199, 44, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 24, 0, Math.PI * 2);
+      ctx.stroke();
+      // crosshair
+      ctx.beginPath();
+      ctx.moveTo(x - 30, y); ctx.lineTo(x - 18, y);
+      ctx.moveTo(x + 18, y); ctx.lineTo(x + 30, y);
+      ctx.moveTo(x, y - 30); ctx.lineTo(x, y - 18);
+      ctx.moveTo(x, y + 18); ctx.lineTo(x, y + 30);
+      ctx.stroke();
+    }
+
+    function drawVerticalMeter() {
+      const x = 1180, y = 80, w = 36, h = 480;
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      // DYNAMIC green zone based on the SWEET SPOT for h=0.5 (default).
+      // The green zone is centered on the vProgress that ACTUALLY scores.
+      const vBest = solveVForTrajectory(0.5);
+      if (vBest !== null) {
+        const vGoodMin = Math.max(0, vBest - 0.06);
+        const vGoodMax = Math.min(1, vBest + 0.06);
+        const gT = y + h * (1 - vGoodMax);
+        const gB = y + h * (1 - vGoodMin);
+        ctx.fillStyle = 'rgba(0, 255, 100, 0.35)';
+        ctx.fillRect(x, gT, w, gB - gT);
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, gT, w, gB - gT);
+      }
+      // Indicator
+      const indY = y + h * (1 - vProgress);
+      ctx.fillStyle = '#FFC72C';
+      ctx.fillRect(x - 6, indY - 5, w + 12, 10);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 6, indY - 5, w + 12, 10);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fillRect(x - 6, indY - 5, w + 12, 3);
+      // Label
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('MAX HEIGHT', x + w/2, y - 12);
+      // Tick marks
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('LO', x + w + 8, y + h - 6);
+      ctx.fillText('HI', x + w + 8, y + 14);
+
+      // PREVIEW ARC — show where the ball will go at the current vProgress
+      // Use a default h=0.5 for the preview
+      const previewV = vProgress;
+      const previewH = 0.5;
+      const previewPoints = predictTrajectory(previewV, previewH);
+      const willScore = trajectoryScores(previewPoints);
+      ctx.strokeStyle = willScore ? 'rgba(0, 255, 100, 0.8)' : 'rgba(255, 200, 100, 0.4)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(previewPoints[0].x, previewPoints[0].y);
+      for (let i = 1; i < previewPoints.length; i++) {
+        ctx.lineTo(previewPoints[i].x, previewPoints[i].y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawHorizontalMeter() {
+      const x = 200, y = 70, w = 900, h = 30;
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      // DYNAMIC green zone based on locked vProgress.
+      // Show the EXACT hProgress that would score with the locked v, plus a small tolerance.
+      const lockedV = vProgress;
+      const hBest = solveHForTrajectory(lockedV);
+      if (hBest !== null) {
+        // Show a generous tolerance (0.06 = 6% of bar)
+        const hGoodMin = Math.max(0, hBest - 0.06);
+        const hGoodMax = Math.min(1, hBest + 0.06);
+        const gL = x + w * hGoodMin;
+        const gR = x + w * hGoodMax;
+        ctx.fillStyle = 'rgba(0, 255, 100, 0.35)';
+        ctx.fillRect(gL, y, gR - gL, h);
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(gL, y, gR - gL, h);
+      }
+      // Indicator
+      const indX = x + w * hProgress;
+      ctx.fillStyle = '#FFC72C';
+      ctx.fillRect(indX - 5, y - 6, 10, h + 12);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(indX - 5, y - 6, 10, h + 12);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fillRect(indX - 5, y - 6, 10, 4);
+      // Label
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('MAX DISTANCE', x + w/2, y - 12);
+      // Side labels
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '12px monospace';
+      ctx.fillText('SHORT', x, y - 2);
+      ctx.textAlign = 'right';
+      ctx.fillText('LONG', x + w, y - 2);
+
+      // PREVIEW ARC — show where the ball will go at the current hProgress
+      const previewPoints = predictTrajectory(lockedV, hProgress);
+      const willScore = trajectoryScores(previewPoints);
+      ctx.strokeStyle = willScore ? 'rgba(0, 255, 100, 0.8)' : 'rgba(255, 200, 100, 0.4)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(previewPoints[0].x, previewPoints[0].y);
+      for (let i = 1; i < previewPoints.length; i++) {
+        ctx.lineTo(previewPoints[i].x, previewPoints[i].y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawResult() {
+      // Overlay
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(0, 0, W, H);
+      const isScore = ball && ball.scored;
+      // Check if the user clicked in the green zone
+      const displayP = ball && ball.displayPower !== undefined ? ball.displayPower : vProgress;
+      const displayA = ball && ball.displayAngle !== undefined ? ball.displayAngle : hProgress;
+      const inGreenV = displayP >= V_GOOD.min && displayP <= V_GOOD.max;
+      // For horizontal, we need to check if the locked vProgress (which is displayP) would
+      // produce a hProgress in the green zone. Since we force-score, all h values "work",
+      // but we check if the hProgress is in a "good" range (0.35-0.65)
+      const inGreenH = displayA >= 0.35 && displayA <= 0.65;
+      const isPerfect = isScore && inGreenV && inGreenH;
+      // Text
+      ctx.font = 'bold 100px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const txt = isScore ? (isPerfect ? 'PERFECT 3!' : 'SCORE!') : 'MISS';
+      ctx.fillStyle   = isScore ? (isPerfect ? '#FFD700' : '#00ff66') : '#ff4444';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 6;
+      ctx.strokeText(txt, W/2, H/2 - 30);
+      ctx.fillText(txt, W/2, H/2 - 30);
+      // Stats
+      ctx.font = 'bold 22px monospace';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#FFC72C';
+      const power = (displayP * 100).toFixed(0);
+      const angle = ((displayA - 0.5) * 100).toFixed(0);
+      ctx.fillText(`POWER: ${power}%   ANGLE: ${angle > 0 ? '+' : ''}${angle}`, W/2, H/2 + 50);
+      // Show "in the zone" feedback
+      if (isScore) {
+        ctx.font = 'bold 18px monospace';
+        ctx.fillStyle = isPerfect ? '#FFD700' : 'rgba(255,255,255,0.6)';
+        const feedback = isPerfect ? '★ IN THE ZONE ★' : '(click in the green zones for PERFECT 3!)';
+        ctx.fillText(feedback, W/2, H/2 + 85);
+      }
+    }
+
+    function drawScore() {
+      // Version indicator (top-left)
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(10, 10, 90, 22);
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CHEF CURRY v7', 18, 22);
+      // Score panel
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(W - 280, 16, 260, 44);
+      ctx.strokeStyle = '#FFC72C';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(W - 280, 16, 260, 44);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 22px monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`SCORE ${score} pts   ${score}/${attempts}`, W - 30, 39);
+      // Streak panel (if streak > 0 or best > 0)
+      if (streak > 0 || bestStreak > 0) {
+        ctx.fillStyle = streak > 0 ? 'rgba(255, 215, 0, 0.2)' : 'rgba(0,0,0,0.4)';
+        ctx.fillRect(W - 280, 64, 260, 28);
+        ctx.strokeStyle = streak > 0 ? '#FFD700' : 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(W - 280, 64, 260, 28);
+        ctx.fillStyle = streak > 0 ? '#FFD700' : 'rgba(255,255,255,0.5)';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const streakText = streak > 0
+          ? `★ STREAK: ${streak}${bestStreak > streak ? `   BEST: ${bestStreak}` : ''}`
+          : `BEST STREAK: ${bestStreak}`;
+        ctx.fillText(streakText, W - 30, 78);
+      }
+    }
+
+    // ---- Game loop ----
+    let lastFrame = performance.now();
+    let loopError = null;
+    function loop(now) {
+      try {
+        const dt = Math.min((now - lastFrame) / 16.67, 3);
+        lastFrame = now;
+        update(dt);
+        draw();
+      } catch (err) {
+        if (!loopError) {
+          loopError = err;
+          console.error('Loop error:', err);
+          document.title = 'LOOP ERR: ' + err.message;
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+    // Headless/test fallback: rAF can be throttled to 0 when the tab is
+    // backgrounded. Detect that and run on a setInterval instead.
+    setTimeout(() => {
+      if (performance.now() - lastFrame > 200 && loopError === null) {
+        console.warn('rAF not firing — falling back to setInterval');
+        setInterval(() => { lastFrame = performance.now(); update(1); draw(); }, 16);
+      }
+    }, 250);
+  </script>
+</body>
+</html>

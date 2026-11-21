@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Cube 3x3</title>
+<style>
+  :root{
+    --bg:#11151b; --panel:#1a212b; --panel2:#222b37; --line:#2c3644;
+    --ink:#e9eff7; --soft:#8fa0b4; --accent:#2196f3; --teal:#2ec4b6;
+    --good:#31c74f; --warn:#f5a623;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:40px;
+  }
+  /* ---------- top bar ---------- */
+  .appbar{display:flex;align-items:center;gap:10px;background:#161c25;
+          border-bottom:1px solid var(--line);padding:10px 14px}
+  .appbar .ttl{font-size:16px;font-weight:bold}
+  .appbar .caret{color:var(--soft);font-size:11px}
+  .appbar .sp{flex:1}
+  .strip{display:flex;align-items:center;gap:10px;background:#141a22;
+         border-bottom:1px solid var(--line);padding:8px 14px}
+  .strip .lbl{color:var(--teal);font-size:14px;font-weight:bold;cursor:pointer;
+              background:none;border:none;font-family:inherit;padding:0;text-align:left}
+  .strip .sp{flex:1}
+  .strip .reset{color:var(--teal);font-size:13px;background:none;border:none;
+                cursor:pointer;font-family:inherit;padding:0}
+  .dot{width:10px;height:10px;border-radius:2px;background:var(--teal);
+       display:inline-block;margin-right:7px;vertical-align:0}
+  .iconbtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
+           background:var(--panel);color:var(--soft);font-size:15px;cursor:pointer;
+           font-family:inherit}
+  .wrap{max-width:780px;margin:0 auto;padding:12px 12px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+        padding:12px;margin:0 0 12px}
+  /* ---------- the cube ---------- */
+  #stage{display:flex;flex-wrap:wrap;justify-content:center;background:var(--bg);
+         border:none;padding:4px 0 0}
+  canvas{width:min(82vw,430px);height:min(82vw,430px);touch-action:none;cursor:grab;display:block}
+  canvas.dragging{cursor:grabbing}
+  canvas.locked{cursor:default}
+  .hint{width:100%;text-align:center;color:var(--soft);font-size:13px;margin-top:4px}
+  .hint .lock{color:var(--teal);font-weight:bold}
+  /* ---------- buttons ---------- */
+  .nextbtn{display:block;width:100%;padding:16px;font-size:21px;font-weight:bold;
+            color:#fff;background:linear-gradient(180deg,#3aa6f5,#2196f3);
+            border:none;border-radius:12px;cursor:pointer;font-family:inherit;
+            box-shadow:0 4px 0 #1768ab}
+  .nextbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #1768ab}
+  .nextbtn[disabled]{background:#3c4a5c;box-shadow:0 4px 0 #2b3646;cursor:default}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .row button{flex:1;min-width:96px;padding:11px;font-size:14px;border-radius:10px;
+              border:1px solid var(--line);background:var(--panel2);color:var(--ink);
+              font-weight:bold;cursor:pointer;font-family:inherit}
+  .row button:active{background:#2b3644}
+  .row button.teal{color:var(--teal)}
+  /* ---------- the colour entry panel ---------- */
+  .entryhead{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
+  .entryhead .t{font-size:17px;font-weight:bold}
+  .entryhead .n{font-size:13px;color:var(--soft)}
+  .entryhint{font-size:13px;color:var(--soft);margin:0 0 10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:260px;
+         margin:0 auto 12px}
+  .grid3 .sq{position:relative;aspect-ratio:1;border-radius:10px;border:2px solid #333f4e;
+             background:#232c38;cursor:pointer;padding:0;
+             display:flex;align-items:center;justify-content:center;
+             font-size:11px;color:#5b6b7f;font-family:inherit}
+  .grid3 .sq.filled{border-color:#46566a}
+  .grid3 .sq.locked{cursor:default;border-style:dashed}
+  .grid3 .sq.locked::after{content:"";width:8px;height:8px;border-radius:50%;
+             background:rgba(0,0,0,.4);position:absolute}
+  .palette{display:flex;gap:11px;justify-content:center;margin:0 0 12px}
+  .palette button{width:38px;height:38px;border-radius:50%;border:3px solid transparent;
+                  cursor:pointer;padding:0;box-shadow:0 2px 5px rgba(0,0,0,.4)}
+  .palette button.sel{border-color:var(--ink);transform:scale(1.12)}
+  .entrynav{display:flex;gap:10px}
+  .entrynav button{flex:1;padding:12px;font-size:15px;border-radius:10px;
+                   border:1px solid var(--line);background:var(--panel2);color:var(--ink);
+                   font-weight:bold;cursor:pointer;font-family:inherit}
+  .entrynav button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  /* ---------- the step list ---------- */
+  .nowbox{border:1px dashed var(--teal);border-radius:12px;padding:11px 13px;background:#182029}
+  .nowbox .lbl{font-size:12px;letter-spacing:1px;color:var(--teal);font-weight:bold;text-transform:uppercase}
+  .movelist{list-style:none;counter-reset:ml;margin:6px 0 0;padding:0}
+  .movelist li{counter-increment:ml;position:relative;padding:5px 6px 5px 34px;
+               font-size:15px;line-height:1.35;border-radius:9px;color:var(--ink)}
+  .movelist li::before{content:counter(ml);position:absolute;left:4px;top:5px;
+               width:22px;height:22px;border-radius:50%;background:#27333f;
+               color:var(--teal);font-size:12px;font-weight:bold;
+               display:flex;align-items:center;justify-content:center}
+  .movelist li.done{color:var(--soft)}
+  .movelist li.done::before{content:"\2713";background:var(--good);color:#fff}
+  .movelist li.cur{background:var(--accent);color:#fff;font-weight:bold;font-size:17px}
+  .movelist li.cur::before{background:#fff;color:var(--accent)}
+  .nowbox .say{font-size:15px;color:var(--soft);margin-top:7px;line-height:1.4}
+  .facelist{list-style:none;margin:7px 0 0;padding:0}
+  .facelist li{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--soft);
+               padding:3px 0}
+  .facelist li .tick{width:19px;height:19px;border-radius:50%;background:#27333f;
+                     color:var(--teal);font-size:12px;display:flex;align-items:center;
+                     justify-content:center;flex:0 0 auto}
+  .facelist li.ok .tick{background:var(--good);color:#fff}
+  .facelist li.now{color:var(--ink);font-weight:bold}
+  .prog{font-size:13px;color:var(--soft);margin-top:8px}
+  /* ---------- the layers ---------- */
+  h2.lay{margin:0 0 6px;font-size:18px;display:flex;align-items:center;gap:9px}
+  .badge{background:var(--teal);color:#0d1117;border-radius:20px;padding:2px 12px;font-size:14px}
+  .layer{margin:0 0 16px}
+  .layer:last-child{margin-bottom:0}
+  .layer ul.goals{font-size:14px;color:var(--soft);margin:0 0 10px;padding-left:20px}
+  .layer ul.goals li{margin:2px 0}
+  .algrow{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:9px;background:var(--panel2)}
+  .algrow.active{border-color:var(--teal);background:#1c2a2c}
+  .algrow .name{font-size:15px;font-weight:bold}
+  .algrow .moves{list-style:none;counter-reset:am;margin:7px 0 0;padding:0}
+  .algrow .moves li{counter-increment:am;position:relative;padding:3px 4px 3px 30px;
+                    font-size:14px;line-height:1.35;color:var(--ink)}
+  .algrow .moves li::before{content:counter(am);position:absolute;left:2px;top:3px;
+                    width:20px;height:20px;border-radius:50%;background:#27333f;
+                    color:var(--soft);font-size:11px;font-weight:bold;
+                    display:flex;align-items:center;justify-content:center}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:6px;
+     border:1px solid rgba(255,255,255,.25)}
+  .done{color:var(--good);font-weight:bold}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #2c3947;border-top-color:var(--teal);
+           border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <span class="ttl">Cube 3x3</span><span class="caret">&#9662;</span>
+  <span class="sp"></span>
+  <button class="iconbtn" id="btnHelp" title="Help">?</button>
+</div>
+
+<div class="strip">
+  <button class="lbl" id="stripLbl"><span class="dot"></span>Customize your cube</button>
+  <span class="sp"></span>
+  <button class="reset" id="btnReset">Reset</button>
+</div>
+
+<div class="wrap">
+
+  <div class="card" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hint" id="hint">Drag to spin &middot; tap a side to turn it</div>
+  </div>
+
+  <div class="card" id="entryCard" style="display:none">
+    <div class="entryhead"><span class="t" id="entryTitle">Front face</span><span class="n" id="entryNum"></span></div>
+    <p class="entryhint" id="entryHint"></p>
+    <div class="grid3" id="grid3"></div>
+    <div class="palette" id="palette"></div>
+    <div class="entrynav">
+      <button id="btnPrev">&#8249; Previous</button>
+      <button id="btnNext" class="primary">Next &#8250;</button>
+    </div>
+  </div>
+
+  <div class="card" id="solveCard">
+    <button class="nextbtn" id="next">Next Move &#9654;</button>
+    <div class="row">
+      <button id="auto">Do it all</button>
+      <button id="scr">Shuffle</button>
+      <button id="btnEnter" class="teal">Enter my cube</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="nowbox">
+      <div class="lbl" id="nowlbl">Getting ready&hellip;</div>
+      <ol class="movelist" id="nowalg"></ol>
+      <div class="say" id="nowsay">Thinking about the cube&hellip;</div>
+      <ul class="facelist" id="nowfaces" style="display:none"></ul>
+    </div>
+    <div class="prog" id="prog"></div>
+  </div>
+
+  <div class="card" id="layers">
+    <div class="layer" id="lay1">
+      <h2 class="lay"><span class="badge">Layer 1</span> <span id="layname1"></span></h2>
+      <ul class="goals" id="goals1"></ul>
+      <div id="alg1"></div>
+    </div>
+    <div class="layer" id="lay2">
+      <h2 class="lay"><span class="badge">Layer 2</span> <span id="layname2"></span></h2>
+      <ul class="goals" id="goals2"></ul>
+      <div id="alg2"></div>
+    </div>
+    <div class="layer" id="lay3">
+      <h2 class="lay"><span class="badge">Layer 3</span> <span id="layname3"></span></h2>
+      <ul class="goals" id="goals3"></ul>
+      <div id="alg3"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* BEGIN GENERATED: CORE */
+/* rubiks core: engine + staged solver.  Ported from the verified Python
+   engine (cube.py / solver.py) and cross-checked against it. */
+(function (root) {
+  'use strict';
+
+  // ---------------------------------------------------------- geometry
+  var FACE_NORMALS = { U: [0, 1, 0], D: [0, -1, 0], F: [0, 0, 1],
+                       B: [0, 0, -1], R: [1, 0, 0], L: [-1, 0, 0] };
+  var FACE_UP = { U: [0, 0, -1], D: [0, 0, 1], F: [0, 1, 0],
+                  B: [0, 1, 0], R: [0, 1, 0], L: [0, 1, 0] };
+  var FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'];
+  var MOVES = { U: ['y', 1, -1], D: ['y', -1, 1], R: ['x', 1, -1],
+                L: ['x', -1, 1], F: ['z', 1, -1], B: ['z', -1, 1],
+                M: ['x', 0, 1], E: ['y', 0, 1], S: ['z', 0, -1] };
+  var SOLVED_COLORS = { U:'Y', D:'W', F:'G', B:'B', R:'O', L:'R' };
+  var COLOR_NAMES = { W: 'white', Y: 'yellow', G: 'green',
+                      B: 'blue', R: 'red', O: 'orange' };
+
+  function cross(a, b) {
+    return [a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0]];
+  }
+  function rot90(v, axis, q) {
+    q = ((q % 4) + 4) % 4;
+    for (var i = 0; i < q; i++) {
+      var x = v[0], y = v[1], z = v[2];
+      if (axis === 'x') v = [x, -z, y];
+      else if (axis === 'y') v = [z, y, -x];
+      else v = [-y, x, z];
+    }
+    return v;
+  }
+  function faceBasis(face) {
+    var n = FACE_NORMALS[face], up = FACE_UP[face];
+    return { n: n, up: up, right: cross(up, n) };
+  }
+
+  // 54 cells, in the same order the Python engine uses: face order
+  // U,R,F,D,L,B and inside each face row 0 (top) to row 2 (bottom).
+  var CELLS = [];
+  (function () {
+    for (var fi = 0; fi < FACE_ORDER.length; fi++) {
+      var face = FACE_ORDER[fi], b = faceBasis(face);
+      for (var r = 0; r < 3; r++) {
+        for (var c = 0; c < 3; c++) {
+          var u = 1 - r, rc = c - 1, p = [];
+          for (var k = 0; k < 3; k++) {
+            p.push(b.n[k] + u * b.up[k] + rc * b.right[k]);
+          }
+          CELLS.push({ pos: p, nrm: b.n, face: face, r: r, c: c });
+        }
+      }
+    }
+  })();
+  var CELL_INDEX = {};
+  for (var i = 0; i < 54; i++) {
+    CELL_INDEX[CELLS[i].pos.join(',') + '|' + CELLS[i].nrm.join(',')] = i;
+  }
+  var HOME_FACE_COLOR = [];
+  for (var j = 0; j < 54; j++) HOME_FACE_COLOR.push(SOLVED_COLORS[CELLS[j].face]);
+
+  // ------------------------------------------------------- move tables
+  function turnsOf(tok) {
+    var s = tok.slice(1).trim();
+    if (s === '') return 1;
+    if (s === "'" || s === '’' || s === 'p' || s === 'P') return -1;
+    if (s === '2') return 2;
+    if (s === '3') return 3;
+    throw new Error('bad move ' + tok);
+  }
+  function moveDest(tok) {
+    var base = tok[0].toUpperCase();
+    if (!MOVES[base]) throw new Error('unknown move ' + tok);
+    var axis = MOVES[base][0], layer = MOVES[base][1];
+    var quarters = MOVES[base][2] * turnsOf(tok);
+    var ai = axis === 'x' ? 0 : (axis === 'y' ? 1 : 2);
+    var dest = new Int32Array(54);
+    for (var k = 0; k < 54; k++) {
+      var cell = CELLS[k];
+      if (cell.pos[ai] !== layer) { dest[k] = k; continue; }
+      var np = rot90(cell.pos, axis, quarters);
+      var nn = rot90(cell.nrm, axis, quarters);
+      dest[k] = CELL_INDEX[np.join(',') + '|' + nn.join(',')];
+    }
+    return dest;
+  }
+  var MOVE_DEST = {};
+  'U D F B R L M E S'.split(' ').forEach(function (f) {
+    ['', "'", '2'].forEach(function (s) {
+      var t = f + s;
+      try { MOVE_DEST[t] = moveDest(t); } catch (e) { /* ignore */ }
+    });
+  });
+  function parseSeq(text) {
+    return String(text).trim().split(/\s+/).filter(function (t) { return t.length; });
+  }
+  function macroDest(text) {
+    var dest = new Int32Array(54);
+    for (var k = 0; k < 54; k++) dest[k] = k;
+    parseSeq(text).forEach(function (tok) {
+      var d = MOVE_DEST[tok];
+      if (!d) throw new Error('unknown move ' + tok);
+      var next = new Int32Array(54);
+      for (var k2 = 0; k2 < 54; k2++) next[k2] = d[dest[k2]];
+      dest = next;
+    });
+    return dest;
+  }
+  function invertPerm(dest) {
+    var inv = new Int32Array(54);
+    for (var k = 0; k < 54; k++) inv[dest[k]] = k;
+    return inv;
+  }
+
+  // ------------------------------------------------------------- pieces
+  // A cubie is identified by its colours.  Group the 54 stickers by the
+  // cubie they belong to, then look pieces up by colour set.
+  var CUBIE_BY_COLORS = {};
+  (function () {
+    var byPos = {};
+    for (var k = 0; k < 54; k++) {
+      var key = CELLS[k].pos.join(',');
+      (byPos[key] = byPos[key] || []).push(k);
+    }
+    Object.keys(byPos).forEach(function (key) {
+      var ids = byPos[key], table = {};
+      ids.forEach(function (id) { table[HOME_FACE_COLOR[id]] = id; });
+      CUBIE_BY_COLORS[Object.keys(table).sort().join('')] = table;
+    });
+  })();
+  function piece(name, colors) {
+    var key = colors.split('').sort().join('');
+    var table = CUBIE_BY_COLORS[key];
+    if (!table) throw new Error('no cubie ' + colors);
+    var ids = colors.split('').sort().map(function (c) { return table[c]; });
+    return { name: name, colors: colors.split('').sort(), ids: ids,
+             yIndex: colors.indexOf('Y') };
+  }
+  var WHITE_EDGES = [piece('white-green', 'WG'), piece('white-red', 'WR'),
+                     piece('white-blue', 'WB'), piece('white-orange', 'WO')];
+  var WHITE_CORNERS = [piece('white-green-red', 'WGR'),
+                       piece('white-green-orange', 'WGO'),
+                       piece('white-blue-red', 'WBR'),
+                       piece('white-blue-orange', 'WBO')];
+  var MIDDLE_EDGES = [piece('green-red', 'GR'), piece('green-orange', 'GO'),
+                      piece('blue-red', 'BR'), piece('blue-orange', 'BO')];
+  var TOP_EDGES = [piece('yellow-green', 'YG'), piece('yellow-red', 'YR'),
+                   piece('yellow-blue', 'YB'), piece('yellow-orange', 'YO')];
+  var TOP_CORNERS = [piece('yellow-green-red', 'YGR'),
+                     piece('yellow-green-orange', 'YGO'),
+                     piece('yellow-blue-red', 'YBR'),
+                     piece('yellow-blue-orange', 'YBO')];
+  var F2L_CUBIES = WHITE_CORNERS.concat(WHITE_EDGES, MIDDLE_EDGES);
+
+  // -------------------------------------------------------------- state
+  // state[stickerId] = the location that sticker currently sits at.
+  function solvedState() {
+    var s = new Uint8Array(54);
+    for (var k = 0; k < 54; k++) s[k] = k;
+    return s;
+  }
+  function applyDest(state, dest) {
+    var out = new Uint8Array(54);
+    for (var k = 0; k < 54; k++) out[k] = dest[state[k]];
+    return out;
+  }
+  function applyMove(state, tok) { return applyDest(state, MOVE_DEST[tok]); }
+  function applyMacro(state, text) { return applyDest(state, macroDest(text)); }
+  function piecesHome(state, pieces) {
+    for (var p = 0; p < pieces.length; p++) {
+      var ids = pieces[p].ids;
+      for (var q = 0; q < ids.length; q++) if (state[ids[q]] !== ids[q]) return false;
+    }
+    return true;
+  }
+  function locationNormal(loc) { return CELLS[loc].nrm; }
+
+  // ------------------------------------------------------------ searches
+  function sigKey(sig) {
+    var s = '';
+    for (var k = 0; k < sig.length; k++) s += String.fromCharCode(sig[k]);
+    return s;
+  }
+  function sigOf(state, pieces) {
+    var out = [];
+    for (var p = 0; p < pieces.length; p++) {
+      var ids = pieces[p].ids;
+      for (var q = 0; q < ids.length; q++) out.push(state[ids[q]]);
+    }
+    return Uint8Array.from(out);
+  }
+  function goalSig(pieces) {
+    var out = [];
+    for (var p = 0; p < pieces.length; p++) {
+      var ids = pieces[p].ids;
+      for (var q = 0; q < ids.length; q++) out.push(ids[q]);
+    }
+    return Uint8Array.from(out);
+  }
+
+  /* Signature BFS: walk BACKWARDS from the goal using each generator's
+     inverse permutation, then read the path forward.  The stored generator
+     is the forward one, so the path comes out in forward order already. */
+  function bfsSolve(state, pieces, gens) {
+    var target = goalSig(pieces), start = sigOf(state, pieces);
+    if (sigKey(target) === sigKey(start)) return [];
+    var dests = gens.map(function (g) { return macroDest(g); });
+    var invs = dests.map(invertPerm);
+    var came = new Map();
+    came.set(sigKey(target), null);
+    var queue = [target];
+    var qi = 0;
+    while (qi < queue.length) {
+      var cur = queue[qi++];
+      var ck = sigKey(cur);
+      for (var gi = 0; gi < invs.length; gi++) {
+        var inv = invs[gi];
+        var ns = new Uint8Array(cur.length);
+        for (var k = 0; k < cur.length; k++) ns[k] = inv[cur[k]];
+        var nk = sigKey(ns);
+        if (came.has(nk)) continue;
+        came.set(nk, { gen: gens[gi], prev: ck });
+        if (nk === sigKey(start)) {
+          var path = [], walk = nk;
+          while (came.get(walk) !== null) {
+            var step = came.get(walk);
+            path.push(step.gen);
+            walk = step.prev;
+          }
+          return path;
+        }
+        queue.push(ns);
+      }
+    }
+    return null;
+  }
+
+  /* Exact per-piece distance tables, built by walking backwards from home
+     with the generators' inverses.  The sum is an admissible A* heuristic. */
+  function makeOracle(pieces, gens) {
+    var invs = gens.map(function (g) { return invertPerm(macroDest(g)); });
+    var tables = pieces.map(function (pc) {
+      var home = pc.ids.slice();
+      var dist = new Map();
+      var key = home.join(',');
+      dist.set(key, 0);
+      var queue = [home];
+      var qi = 0;
+      while (qi < queue.length) {
+        var cur = queue[qi++];
+        var d = dist.get(cur.join(',')) + 1;
+        for (var gi = 0; gi < invs.length; gi++) {
+          var inv = invs[gi];
+          var ns = cur.map(function (x) { return inv[x]; });
+          var nk = ns.join(',');
+          if (dist.has(nk)) continue;
+          dist.set(nk, d);
+          queue.push(ns);
+        }
+      }
+      return dist;
+    });
+    return {
+      h: function (sig) {
+        var total = 0, off = 0;
+        for (var p = 0; p < pieces.length; p++) {
+          var n = pieces[p].ids.length;
+          var slice = Array.prototype.slice.call(sig, off, off + n);
+          var d = tables[p].get(slice.join(','));
+          total += (d === undefined ? 12 : d);
+          off += n;
+        }
+        return total;
+      }
+    };
+  }
+
+  /* A* over generator sequences, tracking only the pieces that matter. */
+  function aStar(state, pieces, gens, opts) {
+    opts = opts || {};
+    var start = sigOf(state, pieces);
+    if (sigKey(start) === sigKey(goalSig(pieces))) return [];
+    var dests = gens.map(function (g) { return macroDest(g); });
+    var faces = gens.map(function (g) {
+      var t = parseSeq(g);
+      return t.length === 1 ? t[0][0].toUpperCase() : '';
+    });
+    var oracle = makeOracle(pieces, gens);
+    var best = new Map();
+    var came = new Map();
+    var startKey = sigKey(start) + '|';
+    best.set(startKey, 0);
+    var heap = [{ f: oracle.h(start), g: 0, k: startKey, sig: start, face: '' }];
+    var counter = 0;
+    while (heap.length) {
+      // small binary heap
+      var bi = 0;
+      for (var i = 1; i < heap.length; i++) if (heap[i].f < heap[bi].f) bi = i;
+      var node = heap.splice(bi, 1)[0];
+      if (node.g > (best.get(node.k) === undefined ? Infinity : best.get(node.k))) continue;
+      if (sigKey(node.sig) === sigKey(goalSig(pieces))) {
+        var path = [], walk = node.k;
+        while (came.has(walk)) {
+          var step = came.get(walk);
+          path.push(step.gen);
+          walk = step.prev;
+        }
+        return path;
+      }
+      for (var gi = 0; gi < dests.length; gi++) {
+        if (faces[gi] && faces[gi] === node.face) continue;
+        var d = dests[gi];
+        var ns = new Uint8Array(node.sig.length);
+        for (var k = 0; k < node.sig.length; k++) ns[k] = d[node.sig[k]];
+        var nk = sigKey(ns) + '|' + faces[gi];
+        var ng = node.g + 1;
+        if (ng >= (best.get(nk) === undefined ? Infinity : best.get(nk))) continue;
+        best.set(nk, ng);
+        came.set(nk, { gen: gens[gi], prev: node.k });
+        heap.push({ f: ng + oracle.h(ns), g: ng, k: nk, sig: ns, face: faces[gi] });
+        counter++;
+      }
+    }
+    return null;
+  }
+
+  // ------------------------------------------------------- stage recipes
+  var CROSS_SAFE = ["R U R' U'", "R' U' R U", "L' U' L U", "L U L' U'",
+                    'U', "U'", 'U2'];
+  var FLIP = "F R U R' U' F'";
+  var SUNE = "R U R' U R U2 R'";
+  var CSWAP = "R U R' U' R' F R2 U' R' U' R U R' F'";
+  var ESWAP = "M2 U M2 U2 M2 U M2";
+  var LL_GENS = [FLIP, SUNE, CSWAP, ESWAP, 'U', "U'", 'U2'];
+  var MID_GENS = ["U R U' R' U' F' U F", "U' L' U L U F U' F'",
+                  "R U F R' F' R'", "L B L B' U' L'",
+                  "R F R F' U' R'", "B R B R' U' B'",
+                  'U', "U'", 'U2'];
+  var ALL_MOVES = [];
+  'U D F B R L'.split(' ').forEach(function (f) {
+    ALL_MOVES.push(f, f + "'", f + '2');
+  });
+
+  /* The whole beginner solve, split into teachable stages.
+     Returns a list of { layer, key, alg, moves } where moves is the flat
+     list of single face turns to apply, in order.
+     `key` identifies the stage; the WORDS for it live in teaching.py, so
+     the teaching text is defined in exactly one place. */
+  function plan(state, opts) {
+    opts = opts || {};
+    var steps = [];
+    var s = Uint8Array.from(state);
+
+    // Layer 1a: the white cross on the bottom.
+    var seqX = bfsSolve(s, WHITE_EDGES, ALL_MOVES);
+    if (!seqX) throw new Error('could not solve the white cross');
+    s = applyMacro(s, seqX.join(' '));
+    steps.push({
+      layer: 1, key: 'cross',
+      alg: seqX.join(' '), moves: seqX.flatMap(parseSeq)
+    });
+
+    // Layer 1b: the white corners.  CROSS_SAFE keeps the cross home by
+    // measurement, so only the corners need tracking.
+    var seqC = bfsSolve(s, WHITE_CORNERS, CROSS_SAFE);
+    if (!seqC) throw new Error('could not solve the white corners');
+    s = applyMacro(s, seqC.join(' '));
+    steps.push({
+      layer: 1, key: 'corners',
+      alg: seqC.join(' '), moves: seqC.flatMap(parseSeq)
+    });
+
+    // Layer 2: the middle ring.
+    var seqM = bfsSolve(s, MIDDLE_EDGES, MID_GENS);
+    if (!seqM) throw new Error('could not solve the middle ring');
+    s = applyMacro(s, seqM.join(' '));
+    steps.push({
+      layer: 2, key: 'middle',
+      alg: seqM.join(' '), moves: seqM.flatMap(parseSeq)
+    });
+
+    // Layer 3: the last layer.
+    var seqL = bfsSolve(s, TOP_CORNERS.concat(TOP_EDGES), LL_GENS);
+    if (!seqL) throw new Error('could not solve the last layer');
+    s = applyMacro(s, seqL.join(' '));
+    steps.push({
+      layer: 3, key: 'yellow',
+      alg: seqL.join(' '), moves: seqL.flatMap(parseSeq)
+    });
+
+    return { steps: steps, solved: s };
+  }
+
+  /* The move list for a scramble, so a caller can replay the same
+     scramble on its own copy of the cube (e.g. to animate it). */
+  function scrambleMoves(length, seed) {
+    var rnd = seed === undefined ? Math.random : (function () {
+      var x = seed >>> 0;
+      return function () { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff; };
+    })();
+    var out = [];
+    for (var k = 0; k < (length || 25); k++) {
+      var f = 'UDFBRL'[Math.floor(rnd() * 6)];
+      var sfx = ['', "'", '2'][Math.floor(rnd() * 3)];
+      out.push(f + sfx);
+    }
+    return out;
+  }
+
+  function randomScramble(length, seed) {
+    var rnd = seed === undefined ? Math.random : (function () {
+      var x = seed >>> 0;
+      return function () { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff; };
+    })();
+    var s = solvedState();
+    for (var k = 0; k < (length || 25); k++) {
+      var f = 'UDFBRL'[Math.floor(rnd() * 6)];
+      var sfx = ['', "'", '2'][Math.floor(rnd() * 3)];
+      s = applyMove(s, f + sfx);
+    }
+    return s;
+  }
+
+  // rendering helpers
+  function faceGrid(state, face) {
+    var grid = [];
+    for (var r = 0; r < 3; r++) {
+      var row = [];
+      for (var c = 0; c < 3; c++) {
+        var cellIndex = -1;
+        for (var k = 0; k < 54; k++) {
+          if (CELLS[k].face === face && CELLS[k].r === r && CELLS[k].c === c) { cellIndex = k; break; }
+        }
+        // find which sticker now sits in that cell
+        var color = '?';
+        for (var q = 0; q < 54; q++) {
+          if (state[q] === cellIndex) { color = HOME_FACE_COLOR[q]; break; }
+        }
+        row.push(color);
+      }
+      grid.push(row);
+    }
+    return grid;
+  }
+
+
+  // --------------------------------------------- building a cube from colours
+  /* The nine cells of one face, in the order the grid shows them: top row
+     first, left to right. */
+  function faceCells(face) {
+    var out = [];
+    for (var k = 0; k < 54; k++) if (CELLS[k].face === face) out.push(k);
+    return out;
+  }
+
+  /* The colour each face's CENTRE must have.  A real cube's centres never
+     move relative to each other, so this fixes the whole colour scheme and
+     tells the app which way round the child is holding the cube. */
+  var CENTRE_COLOUR = { U: 'Y', D: 'W', F: 'G', B: 'B', R: 'O', L: 'R' };
+
+  /* The six centres must be the standard arrangement: yellow up, white
+     down, green front, blue back, orange right, red left.  If they are
+     not, the child is holding the cube the wrong way round and the app
+     must say so rather than teach moves for a cube that is not there. */
+  function centresAreValid(centreColour) {
+    var faces = ['U', 'D', 'F', 'B', 'R', 'L'];
+    for (var f = 0; f < faces.length; f++) {
+      if (centreColour[faces[f]] !== CENTRE_COLOUR[faces[f]]) return false;
+    }
+    return true;
+  }
+
+  /* Build a cube state from the colours somebody typed into the grids.
+
+     colours: an array of 54 colour letters, indexed by CELL index (the same
+     order the grid shows them).  A null means "not filled in yet".
+
+     Every piece of a Rubik's cube is identified by its SET of colours, so
+     the piece sitting in a corner is found from the colours alone - the
+     order the colours were typed in does not matter.  The result is exactly
+     the cube that was typed.
+
+     Returns {state: <Uint8Array>} or {error: '...'}. */
+  function stateFromColours(colours) {
+    var st = new Uint8Array(54), used = {};
+    var groups = {};
+    for (var k = 0; k < 54; k++) {
+      var key = CELLS[k].pos.join(',');
+      (groups[key] = groups[key] || []).push(k);
+    }
+    var gk = Object.keys(groups), centreColour = {};
+    for (var g = 0; g < gk.length; g++) {
+      var cells = groups[gk[g]], cols = [], distinct = {};
+      for (var i = 0; i < cells.length; i++) {
+        var c = colours[cells[i]];
+        if (!c) return { error: 'Some squares are still empty.' };
+        if (!COLOR_NAMES[c]) return { error: 'That is not a cube colour.' };
+        cols.push(c); distinct[c] = true;
+      }
+      if (Object.keys(distinct).length !== cells.length) {
+        return { error: 'One piece has the same colour twice.' };
+      }
+      var table = CUBIE_BY_COLORS[cols.slice().sort().join('')];
+      if (!table) return { error: 'Those colours are not a real cube piece.' };
+      for (var j = 0; j < cells.length; j++) {
+        var sid = table[cols[j]];
+        if (sid === undefined) return { error: 'Those colours are not a real cube piece.' };
+        if (used[sid]) return { error: 'A colour is used twice.' };
+        used[sid] = true;
+        st[sid] = cells[j];
+      }
+      if (cells.length === 1) centreColour[CELLS[cells[0]].face] = cols[0];
+    }
+    for (var u = 0; u < 54; u++) if (!used[u]) return { error: 'A colour is missing.' };
+    if (!centresAreValid(centreColour)) {
+      return { error: 'The six centres do not fit together.' };
+    }
+    return { state: st };
+  }
+
+  root.Rubiks = {
+    FACE_NORMALS: FACE_NORMALS, FACE_UP: FACE_UP, FACE_ORDER: FACE_ORDER, CELLS: CELLS,
+    COLOR_NAMES: COLOR_NAMES, HOME_FACE_COLOR: HOME_FACE_COLOR,
+    MOVE_DEST: MOVE_DEST, ALL_MOVES: ALL_MOVES,
+    CROSS_SAFE: CROSS_SAFE, FLIP: FLIP, SUNE: SUNE, CSWAP: CSWAP,
+    ESWAP: ESWAP, LL_GENS: LL_GENS, MID_GENS: MID_GENS,
+    WHITE_EDGES: WHITE_EDGES, WHITE_CORNERS: WHITE_CORNERS,
+    MIDDLE_EDGES: MIDDLE_EDGES, TOP_EDGES: TOP_EDGES,
+    TOP_CORNERS: TOP_CORNERS, F2L_CUBIES: F2L_CUBIES,
+    solvedState: solvedState, applyMove: applyMove, applyMacro: applyMacro,
+    applyDest: applyDest, piecesHome: piecesHome, macroDest: macroDest,
+    parseSeq: parseSeq, bfsSolve: bfsSolve, aStar: aStar, plan: plan,
+    randomScramble: randomScramble, scrambleMoves: scrambleMoves, faceGrid: faceGrid,
+    locationNormal: locationNormal,
+    faceCells: faceCells,
+    stateFromColours: stateFromColours,
+    centresAreValid: centresAreValid,
+    CENTRE_COLOUR: CENTRE_COLOUR,
+    faceOfLocation: function(loc){ return CELLS[loc].face; }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+if (typeof module !== 'undefined' && module.exports) module.exports = globalThis.Rubiks;
+/* END GENERATED: CORE */
+</script>
+<script>
+(function(){
+  'use strict';
+  var R = window.Rubiks;
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+
+  /* ---- the engine's move table: [axis, layer, quarter-turns] --------------
+     Same convention as the verified engine, so the picture always matches
+     what the solver thinks.                                          */
+  var MOVET = { U:['y',1,-1], D:['y',-1,1], R:['x',1,-1], L:['x',-1,1],
+                F:['z',1,-1], B:['z',-1,1], M:['x',0,1], E:['y',0,1], S:['z',0,-1] };
+  function qOf(tok){
+    var s = tok.slice(1).trim();
+    if (s === '') return 1;
+    if (s === "'" || s === '’' || s === 'p') return -1;
+    if (s === '2') return 2;
+    if (s === '3') return 3;
+    return 1;
+  }
+  function moveInfo(tok){
+    var base = tok[0].toUpperCase();
+    var t = MOVET[base];
+    if (!t) return null;
+    return { axis:t[0], layer:t[1], q:t[2]*qOf(tok) };
+  }
+  /* right-handed rotation about the POSITIVE axis (matches engine rot90) */
+  function rot(v, axis, ang){
+    var k = axis === 'x' ? [1,0,0] : (axis === 'y' ? [0,1,0] : [0,0,1]);
+    var c = Math.cos(ang), s = Math.sin(ang);
+    var kv = [k[1]*v[2]-k[2]*v[1], k[2]*v[0]-k[0]*v[2], k[0]*v[1]-k[1]*v[0]];
+    var kd = k[0]*v[0]+k[1]*v[1]+k[2]*v[2];
+    return [ v[0]*c+kv[0]*s+k[0]*kd*(1-c),
+             v[1]*c+kv[1]*s+k[1]*kd*(1-c),
+             v[2]*c+kv[2]*s+k[2]*kd*(1-c) ];
+  }
+  function axIdx(a){ return a === 'x' ? 0 : (a === 'y' ? 1 : 2); }
+
+  /* ---- kid language ---------------------------------------------------- */
+  /* The long wording is the MEASURED vocabulary (teach.WORD_STEPS +
+     teach.HALF_TURNS); the short labels are shortened from it
+     (short_words.SHORT).  Both are GENERATED - never hand-edit. */
+  /* BEGIN GENERATED: WORDS */
+var WORDS = {
+  "B": "Turn the back face (the side pointing away from you) so the top-back row swings to the LEFT-hand side.",
+  "B'": "Turn the back face (the side pointing away from you) so the top-back row swings to the RIGHT-hand side.",
+  "B2": "Turn the back face a half turn.",
+  "D": "Turn the bottom layer so the row facing you slides to your RIGHT.",
+  "D'": "Turn the bottom layer so the row facing you slides to your LEFT.",
+  "D2": "Turn the bottom layer a half turn.",
+  "F": "Turn the face in front of you so the top row slides DOWN to the RIGHT.",
+  "F'": "Turn the face in front of you so the top row slides DOWN to the LEFT.",
+  "F2": "Turn the face in front of you a half turn.",
+  "L": "Turn the left-hand side so the front-left column slides DOWN.",
+  "L'": "Turn the left-hand side so the front-left column slides UP.",
+  "L2": "Turn the left-hand side a half turn.",
+  "M": "Turn the middle slice (between left and right) so the front middle column slides DOWN.",
+  "M'": "Turn the middle slice (between left and right) so the front middle column slides UP.",
+  "M2": "Turn the middle slice (between left and right) a half turn.",
+  "R": "Turn the right-hand side so the front-right column slides UP.",
+  "R'": "Turn the right-hand side so the front-right column slides DOWN.",
+  "R2": "Turn the right-hand side a half turn.",
+  "U": "Turn the top layer so the row facing you slides to your LEFT.",
+  "U'": "Turn the top layer so the row facing you slides to your RIGHT.",
+  "U2": "Turn the top layer a half turn."
+};
+/* END GENERATED: WORDS */
+  /* BEGIN GENERATED: SHORTWORDS */
+var SHORTWORDS = {
+  "B": "Back: LEFT",
+  "B'": "Back: RIGHT",
+  "B2": "Back: HALF TURN",
+  "D": "Bottom: RIGHT",
+  "D'": "Bottom: LEFT",
+  "D2": "Bottom: HALF TURN",
+  "F": "Front: DOWN RIGHT",
+  "F'": "Front: DOWN LEFT",
+  "F2": "Front: HALF TURN",
+  "L": "Left: DOWN",
+  "L'": "Left: UP",
+  "L2": "Left: HALF TURN",
+  "M": "Middle: DOWN",
+  "M'": "Middle: UP",
+  "M2": "Middle: HALF TURN",
+  "R": "Right: UP",
+  "R'": "Right: DOWN",
+  "R2": "Right: HALF TURN",
+  "U": "Top: LEFT",
+  "U'": "Top: RIGHT",
+  "U2": "Top: HALF TURN"
+};
+/* END GENERATED: SHORTWORDS */
+  /* BEGIN GENERATED: STAGES */
+var STAGES = {
+  "cross": {"title": "White cross", "kid": "Make the white plus on the bottom.", "layer": 1},
+  "corners": {"title": "White corners", "kid": "Put the 4 white corners beside the plus.", "layer": 1},
+  "middle": {"title": "Middle edges", "kid": "Put the 4 middle edges in their slots.", "layer": 2},
+  "yellow": {"title": "Yellow top", "kid": "Turn the yellow face up. Put every piece home.", "layer": 3}
+};
+/* END GENERATED: STAGES */
+  /* BEGIN GENERATED: LAYERS */
+var LAYERS = {
+  "1": "White bottom",
+  "2": "Middle ring",
+  "3": "Yellow top"
+};
+/* END GENERATED: LAYERS */
+
+  function words(m){ return WORDS[m] || ('Turn the ' + m + ' side.'); }
+
+  /* The SHORT label for a move - "Front: DOWN LEFT" instead of "F'".
+     Used wherever a move is printed, so a child never has to read
+     notation. */
+  function shortWords(m){ return SHORTWORDS[m] || words(m); }
+
+  /* An algorithm as a LIST of short word steps.  Never notation. */
+  function algSteps(alg){
+    return String(alg).trim().split(/\s+/).filter(function(t){ return t.length; })
+      .map(function(t){ return shortWords(t); });
+  }
+
+  /* The teaching words for a stage, looked up by key. */
+  function stageWords(key){ return STAGES[key] || {title:key, kid:'', layer:1}; }
+
+  /* ---- the cube, drawn the way it really is ----------------------------
+     Each sticker keeps its own frame: its centre, and the two in-plane
+     axes (right, up) plus its outward normal.  Rebuilding the frame from
+     the normal alone loses the twist, which makes the cube look broken. */
+  var state = R.solvedState();
+  var st = [];            // per sticker: {p:[x,y,z], r:[..], u:[..], n:[..]}
+  var yaw = -0.55, pitch = 0.40, dragging = false, lastX = 0, lastY = 0, moved = 0;
+  var anim = null, plan = null, flatIdx = 0, busy = false, autoMode = false, autoTimer = null;
+  var camTarget = null;   // the camera eases to here (used when entering colours)
+  var cellColour = null;  // null = normal; else a colour per cell (entry mode)
+
+  function buildStickers(){
+    st = [];
+    for (var id = 0; id < 54; id++){
+      var cell = R.CELLS[id];
+      var n = cell.nrm;
+      var up = R.FACE_UP ? R.FACE_UP[cell.face] : [0,1,0];
+      var right = [ up[1]*n[2]-up[2]*n[1], up[2]*n[0]-up[0]*n[2], up[0]*n[1]-up[1]*n[0] ];
+      st.push({
+        p: [ cell.pos[0]+n[0]*0.5, cell.pos[1]+n[1]*0.5, cell.pos[2]+n[2]*0.5 ],
+        r: right, u: up, n: n
+      });
+    }
+  }
+  function buildStickersFromState(s){
+    for (var id = 0; id < 54; id++){
+      var cell = R.CELLS[s[id]];
+      var n = cell.nrm;
+      var up = R.FACE_UP ? R.FACE_UP[cell.face] : [0,1,0];
+      var right = [ up[1]*n[2]-up[2]*n[1], up[2]*n[0]-up[0]*n[2], up[0]*n[1]-up[1]*n[0] ];
+      st[id].n = n;
+      st[id].u = up;
+      st[id].r = right;
+      st[id].p = [ cell.pos[0]+n[0]*0.5, cell.pos[1]+n[1]*0.5, cell.pos[2]+n[2]*0.5 ];
+    }
+  }
+
+  /* ---- canvas --------------------------------------------------------- */
+  var W = 0, H = 0, DPR = 1;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    var rect = cv.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  function camera(v){ return rot(rot(v, 'x', pitch), 'y', yaw); }
+  var hex = { W:'#fdfdfd', Y:'#ffd500', G:'#22b14c', B:'#1e6fd9', R:'#d7263d', O:'#ff7a1a' };
+  function shade(c, f){
+    var r = parseInt(c.slice(1,3),16), g = parseInt(c.slice(3,5),16), b = parseInt(c.slice(5,7),16);
+    r = Math.max(0,Math.min(255,Math.round(r*f)));
+    g = Math.max(0,Math.min(255,Math.round(g*f)));
+    b = Math.max(0,Math.min(255,Math.round(b*f)));
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    var focal = 10, cx = W/2, cy = H/2;
+    var zoom = W / 5.4;
+    var items = [];
+    for (var id = 0; id < 54; id++){
+      var s = st[id];
+      var p = camera(s.p), r = camera(s.r), u = camera(s.u), n = camera(s.n);
+      if (n[2] <= 0.001) continue;                       // back face
+      var hs = 0.5;
+      var pts = [[-1,-1],[1,-1],[1,1],[-1,1]].map(function(sg){
+        var x = p[0] + r[0]*sg[0]*hs + u[0]*sg[1]*hs;
+        var y = p[1] + r[1]*sg[0]*hs + u[1]*sg[1]*hs;
+        var z = p[2] + r[2]*sg[0]*hs + u[2]*sg[1]*hs;
+        var k = focal/(focal - z);
+        return [cx + x*zoom*k, cy - y*zoom*k];
+      });
+      items.push({ id:id, z:p[2], pts:pts, n:n, face:R.CELLS[id].face });
+    }
+    items.sort(function(a,b){ return a.z - b.z; });
+    for (var i = 0; i < items.length; i++){
+      var it = items[i];
+      ctx.beginPath();
+      ctx.moveTo(it.pts[0][0], it.pts[0][1]);
+      for (var j = 1; j < it.pts.length; j++) ctx.lineTo(it.pts[j][0], it.pts[j][1]);
+      ctx.closePath();
+      var base;
+      if (cellColour) base = cellColour[it.id] || '#232c38';
+      else base = hex[R.HOME_FACE_COLOR[it.id]] || '#cccccc';
+      ctx.fillStyle = shade(base, 0.90 + 0.13*it.n[2]);
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(10,14,20,.85)';
+      ctx.stroke();
+    }
+    window.__hits = items;
+  }
+  /* Move the camera a little closer to the target, taking the short way
+     round.  Used when the cube turns to show the face being entered. */
+  function angleStep(cur, tgt){
+    var d = tgt - cur;
+    while (d > Math.PI) d -= 2*Math.PI;
+    while (d < -Math.PI) d += 2*Math.PI;
+    return cur + d * 0.16;
+  }
+  function loop(){
+    if (camTarget){
+      yaw = angleStep(yaw, camTarget.yaw);
+      pitch = angleStep(pitch, camTarget.pitch);
+      if (Math.abs(camTarget.yaw - yaw) < 0.003 && Math.abs(camTarget.pitch - pitch) < 0.003){
+        yaw = camTarget.yaw; pitch = camTarget.pitch; camTarget = null;
+      }
+    }
+    if (anim){
+      var t = Math.min(1, (performance.now() - anim.t0)/anim.dur);
+      var e = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
+      var ang = anim.info.q * Math.PI/2 * e;
+      var ax = anim.info.axis, ai = axIdx(ax);
+      for (var id = 0; id < 54; id++){
+        var s = anim.pre[id];
+        var cubie = [ s.p[0]-s.n[0]*0.5, s.p[1]-s.n[1]*0.5, s.p[2]-s.n[2]*0.5 ];
+        if (Math.round(cubie[ai]) !== anim.info.layer) continue;
+        st[id].p = rot(s.p, ax, ang);
+        st[id].r = rot(s.r, ax, ang);
+        st[id].u = rot(s.u, ax, ang);
+        st[id].n = rot(s.n, ax, ang);
+      }
+      if (t >= 1) anim = null;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  /* Rotate the sticker's frames instantly - used by Shuffle, so a
+     sticker's true in-plane orientation is never guessed from a face. */
+  function applyFrames(tok){
+    var info = moveInfo(tok);
+    if (!info) return;
+    var ang = info.q * Math.PI/2, ax = info.axis, ai = axIdx(ax);
+    for (var id = 0; id < 54; id++){
+      var s = st[id];
+      var cubie = [ s.p[0]-s.n[0]*0.5, s.p[1]-s.n[1]*0.5, s.p[2]-s.n[2]*0.5 ];
+      if (Math.round(cubie[ai]) !== info.layer) continue;
+      s.p = rot(s.p, ax, ang);
+      s.r = rot(s.r, ax, ang);
+      s.u = rot(s.u, ax, ang);
+      s.n = rot(s.n, ax, ang);
+    }
+  }
+
+  /* ---- turning the cube ---------------------------------------------- */
+  function doMove(tok, cb){
+    var info = moveInfo(tok);
+    if (!info){ if (cb) cb(); return; }
+    var pre = [];
+    for (var id = 0; id < 54; id++){
+      pre.push({ p:st[id].p.slice(), r:st[id].r.slice(), u:st[id].u.slice(), n:st[id].n.slice() });
+    }
+    state = R.applyMove(state, tok);
+    anim = { tok:tok, t0:performance.now(), dur:400, pre:pre, info:info };
+    if (cb) setTimeout(cb, 410);
+  }
+
+  /* ---- planning -------------------------------------------------------- */
+  function computePlan(){
+    var btn = document.getElementById('next');
+    btn.disabled = true;
+    document.getElementById('nowlbl').innerHTML = '<span class="spinner"></span>Thinking';
+    document.getElementById('nowalg').innerHTML = '';
+    document.getElementById('nowsay').textContent = 'Working it out...';
+    document.getElementById('prog').textContent = '';
+    setTimeout(function(){
+      var p;
+      try { p = R.plan(state); }
+      catch (e){
+        document.getElementById('nowlbl').textContent = 'Hmm';
+        document.getElementById('nowsay').textContent = 'I could not work that out. Try shuffling again.';
+        btn.disabled = false; return;
+      }
+      plan = p; flatIdx = 0;
+      plan.flat = [];
+      plan.steps.forEach(function(s, si){
+        s.moves.forEach(function(m, mi){ plan.flat.push({ move:m, step:s, si:si, mi:mi }); });
+      });
+      renderLayerPanels(); renderNow();
+      btn.disabled = false;
+      document.getElementById('nowlbl').innerHTML = '<span class="spinner"></span>Ready';
+    }, 30);
+  }
+  function renderNow(){
+    var lbl = document.getElementById('nowlbl');
+    var alg = document.getElementById('nowalg');
+    var say = document.getElementById('nowsay');
+    var faces = document.getElementById('nowfaces');
+    var prog = document.getElementById('prog');
+    if (!plan || flatIdx >= plan.flat.length){
+      lbl.innerHTML = '<span class="done">All done!</span>';
+      alg.innerHTML = '';
+      say.textContent = 'Solved! Well done.';
+      faces.style.display = 'none';
+      prog.textContent = '';
+      return;
+    }
+    var cur = plan.flat[flatIdx], s = cur.step;
+    var info = stageWords(s.key);
+    lbl.textContent = 'Layer ' + s.layer + ' — ' + info.title;
+    /* The steps are a LIST, one move per line.  Done ones are ticked, the
+       one to do now is highlighted.  Never notation like "F'". */
+    var toks = s.alg.trim().split(/\s+/).filter(function(t){ return t.length; });
+    var html = '';
+    toks.forEach(function(t, i){
+      var cls = (i === cur.mi) ? 'cur' : (i < cur.mi ? 'done' : '');
+      html += '<li' + (cls ? ' class="' + cls + '"' : '') + '>' + shortWords(t) + '</li>';
+    });
+    alg.innerHTML = html;
+    say.textContent = info.kid;
+    faces.style.display = 'none';
+    prog.textContent = 'Move ' + (flatIdx+1) + ' of ' + plan.flat.length + '  •  Layer ' + s.layer + ' of 3';
+  }
+  function renderLayerPanels(){
+    [1,2,3].forEach(function(L){
+      var box = document.getElementById('alg' + L);
+      var goals = document.getElementById('goals' + L);
+      var nameEl = document.getElementById('layname' + L);
+      box.innerHTML = '';
+      if (goals) goals.innerHTML = '';
+      if (nameEl) nameEl.textContent = LAYERS[String(L)] || '';
+      if (!plan) return;
+      plan.steps.forEach(function(s, si){
+        if (s.layer !== L) return;
+        var info = stageWords(s.key);
+        /* The layer's list of THINGS TO DO - one short line each. */
+        if (goals){
+          var li = document.createElement('li');
+          li.textContent = info.kid;
+          goals.appendChild(li);
+        }
+        /* Then the moves for that step, as a numbered list. */
+        var active = flatIdx < plan.flat.length && plan.flat[flatIdx].si === si;
+        var d = document.createElement('div');
+        d.className = 'algrow' + (active ? ' active' : '');
+        var sw = '<span class="sw" style="background:' + (L===1?'#fdfdfd':(L===2?'#cfd8e3':'#ffd500')) + '"></span>';
+        var ol = '<ol class="moves">';
+        algSteps(s.alg).forEach(function(w){ ol += '<li>' + w + '</li>'; });
+        ol += '</ol>';
+        d.innerHTML = '<div class="name">' + sw + info.title + '</div>' + ol;
+        box.appendChild(d);
+      });
+    });
+  }
+  function refresh(){ renderNow(); renderLayerPanels(); }
+
+  /* ---- entering the colours of your own cube --------------------------- */
+  /* The six faces, in the order a child looks at them: front, right,
+     back, left, then the top and the bottom. */
+  var ENTRY_FACES = ['F', 'R', 'B', 'L', 'U', 'D'];
+  var FACE_NAME = { F:'Front face', R:'Right face', B:'Back face',
+                    L:'Left face', U:'Top face', D:'Bottom face' };
+  /* How to hold the cube so this face reads the same way as the grid. */
+  var FACE_HINT = {
+    F: 'Green face toward you.',
+    R: 'Orange face toward you.',
+    B: 'Blue face toward you.',
+    L: 'Red face toward you.',
+    U: 'Look down at it. Green edge at the bottom.',
+    D: 'Flip it over. Green edge at the top.'
+  };
+  var PALETTE = ['W', 'G', 'R', 'B', 'O', 'Y'];   /* white green red blue orange yellow */
+  var PALETTE_NAME = { W:'white', G:'green', R:'red', B:'blue', O:'orange', Y:'yellow' };
+  /* The camera angle that looks straight at each face, so the grid and the
+     cube on screen show the same face the same way up. */
+  var FACE_VIEW = {
+    F: { yaw: 0,             pitch: 0 },
+    R: { yaw: -Math.PI/2,    pitch: 0 },
+    B: { yaw: Math.PI,       pitch: 0 },
+    L: { yaw: Math.PI/2,     pitch: 0 },
+    U: { yaw: 0,             pitch: Math.PI/2 },
+    D: { yaw: 0,             pitch: -Math.PI/2 }
+  };
+
+  var entry = false;         // are we entering colours?
+  var entryIdx = 0;          // which face of ENTRY_FACES
+  var entryCols = {};        // face -> 9 colour letters (null = not set)
+  var entrySel = null;       // the colour chosen from the palette
+
+  function entryInit(){
+    entryCols = {};
+    ENTRY_FACES.forEach(function(f){
+      var row = new Array(9).fill(null);
+      row[4] = R.CENTRE_COLOUR[f];      // the centre is fixed: it is that face
+      entryCols[f] = row;
+    });
+    entryIdx = 0; entrySel = null;
+  }
+  function entryFace(){ return ENTRY_FACES[entryIdx]; }
+  function entryDone(f){
+    var row = entryCols[f], n = 0;
+    for (var i = 0; i < 9; i++) if (row[i]) n++;
+    return n === 9;
+  }
+  function entryAllDone(){ return ENTRY_FACES.every(entryDone); }
+  /* The colours of every cell, in the order the engine wants. */
+  function entryCellColours(){
+    var flat = new Array(54).fill(null);
+    ENTRY_FACES.forEach(function(f){
+      var cells = R.faceCells(f);
+      for (var i = 0; i < 9; i++) flat[cells[i]] = entryCols[f][i];
+    });
+    return flat;
+  }
+  /* Paint the cube with what has been entered so far.  Unknown squares are
+     left dark so it is obvious what is still to do. */
+  function entryPaint(){
+    cellColour = new Array(54).fill(null);
+    ENTRY_FACES.forEach(function(f){
+      var cells = R.faceCells(f);
+      for (var i = 0; i < 9; i++){
+        var c = entryCols[f][i];
+        if (c) cellColour[cells[i]] = hex[c];
+      }
+    });
+  }
+  function entryRender(){
+    var f = entryFace();
+    document.getElementById('entryTitle').textContent = FACE_NAME[f];
+    document.getElementById('entryNum').textContent =
+      'Face ' + (entryIdx+1) + ' of ' + ENTRY_FACES.length;
+    document.getElementById('entryHint').textContent = FACE_HINT[f];
+
+    /* the 3x3 grid */
+    var grid = document.getElementById('grid3');
+    grid.innerHTML = '';
+    var cells = R.faceCells(f);
+    for (var i = 0; i < 9; i++){
+      (function(i){
+        var b = document.createElement('button');
+        b.className = 'sq';
+        var c = entryCols[f][i];
+        if (c){ b.className += ' filled'; b.style.background = hex[c]; }
+        if (i === 4){
+          b.className += ' locked';
+          b.title = 'The centre is always ' + PALETTE_NAME[c] + '.';
+        } else {
+          b.title = c ? PALETTE_NAME[c] : 'Pick a colour, then tap here';
+          b.addEventListener('click', function(){ entryTap(i); });
+        }
+        grid.appendChild(b);
+      })(i);
+    }
+
+    /* the palette */
+    var pal = document.getElementById('palette');
+    pal.innerHTML = '';
+    PALETTE.forEach(function(c){
+      var b = document.createElement('button');
+      b.style.background = hex[c];
+      if (c === entrySel) b.className = 'sel';
+      b.title = PALETTE_NAME[c];
+      b.addEventListener('click', function(){
+        entrySel = c;
+        entryRender();
+      });
+      pal.appendChild(b);
+    });
+
+    document.getElementById('btnPrev').disabled = (entryIdx === 0);
+    entryRenderFaceList();
+  }
+  /* The list of faces, with a tick for each one that is done. */
+  function entryRenderFaceList(){
+    var ul = document.getElementById('nowfaces');
+    ul.innerHTML = '';
+    ENTRY_FACES.forEach(function(f, i){
+      var li = document.createElement('li');
+      var ok = entryDone(f);
+      li.className = (ok ? 'ok' : '') + (i === entryIdx ? ' now' : '');
+      var tick = document.createElement('span');
+      tick.className = 'tick';
+      tick.textContent = ok ? '\u2713' : '';
+      var name = document.createElement('span');
+      name.textContent = FACE_NAME[f] + ' (' + PALETTE_NAME[R.CENTRE_COLOUR[f]] + ')';
+      li.appendChild(tick); li.appendChild(name);
+      ul.appendChild(li);
+    });
+  }
+  function entryTap(i){
+    var f = entryFace();
+    if (i === 4) return;
+    if (!entrySel) return;
+    /* tapping the same colour again clears the square */
+    entryCols[f][i] = (entryCols[f][i] === entrySel) ? null : entrySel;
+    entryPaint();
+    entryRender();
+    if (entryAllDone()) entryBuild();
+  }
+  /* Turn the entered colours into a real cube and start solving it. */
+  function entryBuild(){
+    var res = R.stateFromColours(entryCellColours());
+    if (!res.state){
+      document.getElementById('entryHint').textContent = res.error;
+      return;
+    }
+    state = res.state;
+    cellColour = null;
+    buildStickersFromState(state);
+    setEntry(false);
+    plan = null; flatIdx = 0; autoMode = false; clearTimeout(autoTimer);
+    computePlan();
+  }
+
+  /* Turn the entry mode on or off. */
+  function setEntry(on){
+    entry = on;
+    document.getElementById('entryCard').style.display = on ? '' : 'none';
+    document.getElementById('solveCard').style.display = on ? 'none' : '';
+    document.getElementById('stripLbl').innerHTML =
+      '<span class="dot"></span>' + (on ? 'Customize your cube' : 'Solve this cube');
+    document.getElementById('btnReset').textContent = on ? 'Reset' : 'Shuffle';
+    if (on){
+      cv.classList.add('locked');
+      document.getElementById('hint').innerHTML =
+        '<span class="lock">Angle locked</span> while you enter the colours.';
+      if (!entryCols.F) entryInit();
+      entryPaint();
+      buildStickers();
+      var v = FACE_VIEW[entryFace()];
+      camTarget = { yaw:v.yaw, pitch:v.pitch };
+      entryRender();
+      document.getElementById('nowlbl').textContent = 'Enter your cube';
+      document.getElementById('nowalg').innerHTML = '';
+      document.getElementById('nowsay').textContent =
+        'Tap a colour, then tap a square. Do all six faces.';
+      document.getElementById('nowfaces').style.display = '';
+      document.getElementById('prog').textContent = '';
+    } else {
+      cv.classList.remove('locked');
+      document.getElementById('hint').innerHTML = 'Drag to spin &middot; tap a side to turn it';
+      camTarget = { yaw:-0.55, pitch:0.40 };
+      document.getElementById('nowfaces').style.display = 'none';
+    }
+  }
+  /* Turn the cube to look straight at the face being entered. */
+  function entryFaceCamera(){
+    var v = FACE_VIEW[entryFace()];
+    camTarget = { yaw:v.yaw, pitch:v.pitch };
+  }
+
+  /* ---- buttons --------------------------------------------------------- */
+  document.getElementById('next').addEventListener('click', function(){
+    if (busy || anim) return;
+    if (!plan){ computePlan(); return; }
+    if (flatIdx >= plan.flat.length){ renderNow(); return; }
+    busy = true;
+    var cur = plan.flat[flatIdx];
+    doMove(cur.move, function(){ flatIdx++; busy = false; refresh(); });
+  });
+  document.getElementById('auto').addEventListener('click', function(){
+    if (autoMode){ autoMode = false; clearTimeout(autoTimer); return; }
+    if (!plan) computePlan();
+    autoMode = true;
+    function tick(){
+      if (!autoMode) return;
+      if (!plan){ autoTimer = setTimeout(tick, 120); return; }
+      if (flatIdx >= plan.flat.length){ autoMode = false; refresh(); return; }
+      if (anim){ autoTimer = setTimeout(tick, 80); return; }
+      var cur = plan.flat[flatIdx];
+      doMove(cur.move, function(){ flatIdx++; refresh(); });
+      autoTimer = setTimeout(tick, 470);
+    }
+    tick();
+  });
+  var shufLen = 28;
+  function doShuffle(){
+    state = R.solvedState();
+    buildStickers();
+    var moves = R.scrambleMoves(shufLen);
+    for (var i = 0; i < moves.length; i++){ state = R.applyMove(state, moves[i]); applyFrames(moves[i]); }
+    plan = null; flatIdx = 0; autoMode = false; clearTimeout(autoTimer);
+    computePlan();
+  }
+  document.getElementById('scr').addEventListener('click', doShuffle);
+  document.getElementById('btnEnter').addEventListener('click', function(){ setEntry(true); });
+  document.getElementById('stripLbl').addEventListener('click', function(){
+    if (entry) setEntry(false); else setEntry(true);
+  });
+  document.getElementById('btnReset').addEventListener('click', function(){
+    if (entry){ entryInit(); entryPaint(); buildStickers(); entryRender(); }
+    else doShuffle();
+  });
+  document.getElementById('btnPrev').addEventListener('click', function(){
+    if (entryIdx === 0) return;
+    entryIdx--; entryFaceCamera(); entryRender();
+  });
+  document.getElementById('btnNext').addEventListener('click', function(){
+    if (entryIdx < ENTRY_FACES.length - 1){
+      entryIdx++; entryFaceCamera(); entryRender();
+    } else {
+      entryBuild();
+    }
+  });
+  document.getElementById('btnHelp').addEventListener('click', function(){
+    document.getElementById('nowsay').textContent =
+      'Enter your cube: hold it white side down, green side toward you. Tap each face and type the colours you see.';
+  });
+
+  /* ---- drag to spin, tap to turn --------------------------------------- */
+  cv.addEventListener('pointerdown', function(e){
+    if (entry) return;                     // the angle is locked while entering
+    dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
+    cv.classList.add('dragging');
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  cv.addEventListener('pointermove', function(e){
+    if (!dragging) return;
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    moved += Math.abs(dx) + Math.abs(dy);
+    yaw += dx * 0.011;
+    pitch = Math.max(-1.35, Math.min(1.35, pitch + dy * 0.011));
+    camTarget = null;
+  });
+  cv.addEventListener('pointerup', function(e){
+    dragging = false; cv.classList.remove('dragging');
+    if (moved < 7) tapFace(e.clientX, e.clientY);
+  });
+  cv.addEventListener('pointercancel', function(){ dragging = false; cv.classList.remove('dragging'); });
+  function tapFace(cx, cy){
+    if (entry) return;
+    var rect = cv.getBoundingClientRect();
+    var x = cx - rect.left, y = cy - rect.top;
+    var hits = window.__hits || [];
+    for (var i = hits.length - 1; i >= 0; i--){
+      var p = hits[i].pts, inside = true;
+      for (var j = 0, k = p.length - 1; j < p.length; k = j++){
+        var x1 = p[j][0], y1 = p[j][1], x2 = p[k][0], y2 = p[k][1];
+        if ((y2 - y1) * (x - x1) - (x2 - x1) * (y - y1) < 0){ inside = false; break; }
+      }
+      if (inside){
+        var loc = state[hits[i].id];
+        var face = R.CELLS[loc].face;
+        doMove(face);
+        plan = null; flatIdx = 0;
+        setTimeout(computePlan, 500);
+        return;
+      }
+    }
+  }
+  window.addEventListener('resize', resize);
+
+  /* ---- test hook ------------------------------------------------------- */
+  window.__cube = {
+    state: function(){ return state; },
+    /* Where each sticker is DRAWN right now, so a test can compare the
+       picture against the engine state.  They must agree. */
+    drawn: function(){
+      var out = [];
+      for (var id = 0; id < 54; id++){
+        var p = st[id].p, n = st[id].n;
+        out.push({ id:id, pos:[p[0]-n[0]*0.5, p[1]-n[1]*0.5, p[2]-n[2]*0.5] });
+      }
+      return out;
+    },
+    plan: function(){ return plan; },
+    flatIdx: function(){ return flatIdx; },
+    view: function(){ return { yaw:yaw, pitch:pitch }; },
+    entry: function(){ return { on:entry, idx:entryIdx, sel:entrySel,
+                                cols:JSON.parse(JSON.stringify(entryCols)) }; },
+    setEntry: setEntry,
+    entryFace: entryFace,
+    setCell: function(face, i, c){ entryCols[face][i] = c; entryPaint(); entryRender(); },
+    buildEntry: entryBuild,
+    isSolved: function(){
+      var all = R.WHITE_EDGES.concat(R.WHITE_CORNERS, R.MIDDLE_EDGES, R.TOP_EDGES, R.TOP_CORNERS);
+      return R.piecesHome(state, all);
+    }
+  };
+
+  /* ---- go -------------------------------------------------------------- */
+  resize();
+  var h = parseInt((location.hash || '').replace('#',''), 10);
+  if (h >= 4 && h <= 60) shufLen = h;
+  state = R.solvedState();
+  buildStickers();
+  var initMoves = R.scrambleMoves(shufLen);
+  for (var i2 = 0; i2 < initMoves.length; i2++){
+    state = R.applyMove(state, initMoves[i2]);
+    applyFrames(initMoves[i2]);
+  }
+  entryInit();
+  computePlan();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

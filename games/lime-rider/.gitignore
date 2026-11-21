@@ -1,0 +1,11 @@
+node_modules/
+node_modules
+.DS_Store
+*.log
+tests/*.png
+tests/debug-*.js
+tests/check-*.js
+tests/just-listen.js
+tests/http-test.js
+tests/turn-test.js
+tests/corner-shot.js

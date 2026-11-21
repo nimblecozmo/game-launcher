@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Snake Game</h1>
+    <div class="ui">
+        <span>Score: <span id="score">0</span></span>
+        <span>High Score: <span id="highScore">0</span></span>
+        <span>Lives: <span id="lives">5</span></span>
+        <span>Autopilot: <span id="autopilotStatus">Off</span></span>
+    </div>
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <div id="gameOver" style="display: none;">
+        <h2>Game Over</h2>
+        <button id="restartButton">Restart</button>
+    </div>
+    <div class="speed-controls">
+        <span>Speed:</span>
+        <span class="speed-btn" data-level="1">1</span>
+        <span class="speed-btn" data-level="2">2</span>
+        <span class="speed-btn" data-level="3">3</span>
+        <span class="speed-btn" data-level="4">4</span>
+        <span class="speed-btn" data-level="5">5</span>
+        <span class="speed-btn" data-level="6">6</span>
+        <span class="speed-btn" data-level="7">7</span>
+        <span class="speed-btn" data-level="8">8</span>
+        <span class="speed-btn" data-level="9">9</span>
+        <span class="speed-btn" data-level="10">10</span>
+        <span class="speed-btn" data-level="11">11</span>
+        <span class="speed-btn" data-level="12">12</span>
+        <span class="speed-btn" data-level="13">13</span>
+        <span class="speed-btn" data-level="14">14</span>
+        <span class="speed-btn" data-level="15">15</span>
+        <span class="speed-btn" data-level="16">16</span>
+        <span class="speed-btn" data-level="17">17</span>
+        <span class="speed-btn" data-level="18">18</span>
+        <span class="speed-btn" data-level="19">19</span>
+        <span class="speed-btn" data-level="20">20</span>
+        <button id="resetHighScoreBtn">Reset High Score</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsfx/1.2.0/jsfx.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

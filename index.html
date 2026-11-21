@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="theme-color" content="#0b242b">
+<title>🎮 Game Launcher</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#071a20; --bg2:#0b242b; --panel:rgba(255,255,255,.045);
+    --line:rgba(72,228,210,.16); --teal:#2ee6d6; --amber:#ffb347;
+    --txt:#dff3f5; --mut:#8fb0b8;
+  }
+  html,body{min-height:100%}
+  body{
+    background:var(--bg); color:var(--txt); overflow-x:hidden;
+    font-family:'Segoe UI',system-ui,-apple-system,'Helvetica Neue',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ambient background */
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(900px 520px at 12% -8%, rgba(46,230,214,.16), transparent 62%),
+      radial-gradient(760px 480px at 88% 6%, rgba(255,64,180,.11), transparent 60%),
+      radial-gradient(820px 620px at 50% 108%, rgba(255,179,71,.09), transparent 62%),
+      linear-gradient(180deg,#06171d 0%, #0b242b 55%, #071a20 100%);}
+  .bg::after{content:'';position:absolute;inset:0;opacity:.5;
+    background-image:linear-gradient(rgba(120,200,205,.05) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(120,200,205,.05) 1px,transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 30%,#000,transparent 75%);
+            mask-image:radial-gradient(ellipse 80% 60% at 50% 30%,#000,transparent 75%);}
+  .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:26px 18px 60px}
+
+  /* ---------- header ---------- */
+  header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;font-size:26px;
+    background:linear-gradient(145deg,rgba(46,230,214,.22),rgba(46,230,214,.05));
+    border:1px solid rgba(46,230,214,.38);box-shadow:0 8px 28px rgba(46,230,214,.18)}
+  h1{font-size:27px;letter-spacing:.4px;font-weight:800}
+  h1 span{background:linear-gradient(90deg,var(--teal),#8ef7e6);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--mut);font-size:12.5px;margin-top:2px;letter-spacing:.3px}
+  .controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  input[type=search]{
+    background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--txt);
+    padding:11px 15px;border-radius:12px;font-size:14px;width:240px;outline:none;
+    font-family:inherit;transition:.18s}
+  input[type=search]::placeholder{color:#6d8f97}
+  input[type=search]:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(46,230,214,.14);width:270px}
+  .btn{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--txt);
+    padding:11px 15px;border-radius:12px;font-size:14px;cursor:pointer;font-family:inherit;transition:.18s;white-space:nowrap}
+  .btn:hover{background:rgba(46,230,214,.16);border-color:var(--teal);transform:translateY(-1px)}
+
+  /* ---------- category chips ---------- */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+  .chip{padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;transition:.16s;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);color:var(--mut);
+    font-weight:600;letter-spacing:.3px}
+  .chip:hover{color:var(--txt);border-color:rgba(46,230,214,.4)}
+  .chip.on{background:linear-gradient(135deg,var(--teal),#19b8ab);color:#05201e;border-color:transparent;
+    box-shadow:0 5px 18px rgba(46,230,214,.3)}
+
+  /* ---------- grid ---------- */
+  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(258px,1fr))}
+  .card{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden;
+    text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:.2s cubic-bezier(.2,.7,.3,1);
+    box-shadow:0 8px 22px rgba(0,0,0,.28)}
+  .card:hover{transform:translateY(-5px);border-color:rgba(46,230,214,.5);
+    box-shadow:0 18px 40px rgba(0,0,0,.45),0 0 0 1px rgba(46,230,214,.18)}
+  .thumb{position:relative;aspect-ratio:16/10;background:#041014;overflow:hidden}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:.35s}
+  .card:hover .thumb img{transform:scale(1.06)}
+  .thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 52%,rgba(4,16,20,.86))}
+  .cat{position:absolute;top:9px;left:9px;z-index:2;font-size:10px;font-weight:800;letter-spacing:1px;
+    text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(4,16,20,.72);
+    border:1px solid rgba(46,230,214,.45);color:var(--teal);backdrop-filter:blur(6px)}
+  .cat[data-c="Sports"]{color:#ffb347;border-color:rgba(255,179,71,.5)}
+  .cat[data-c="Racing"]{color:#ff4bb4;border-color:rgba(255,64,180,.5)}
+  .cat[data-c="Puzzle"]{color:#9ef01a;border-color:rgba(158,240,26,.45)}
+  .cat[data-c="Arcade"]{color:#2ee6d6}
+  .cat[data-c="Sandbox"]{color:#7fd7ff;border-color:rgba(127,215,255,.45)}
+  .info{padding:14px 15px 15px;display:flex;flex-direction:column;gap:5px;flex:1}
+  .info h2{font-size:16px;font-weight:700;letter-spacing:.2px}
+  .info p{font-size:12.5px;color:var(--mut);line-height:1.45;flex:1}
+  .play{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;font-weight:800;
+    letter-spacing:1.4px;color:var(--teal)}
+  .play::before{content:'▶';font-size:9px}
+  .card:hover .play{color:#8ef7e6;text-shadow:0 0 12px rgba(46,230,214,.6)}
+  .empty{grid-column:1/-1;text-align:center;color:var(--mut);padding:60px 0;font-size:15px}
+  footer{margin-top:42px;text-align:center;color:#5e7f87;font-size:12px;line-height:1.8}
+  footer b{color:#7fd7ff;font-weight:600}
+  @media(max-width:560px){
+    h1{font-size:22px} input[type=search]{width:100%} .controls{width:100%}
+    input[type=search]:focus{width:100%} .logo{width:46px;height:46px;font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">🎮</div>
+      <div>
+        <h1><span>Game Launcher</span></h1>
+        <div class="sub" id="sub">loading…</div>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="search" id="search" placeholder="Search games…" autocomplete="off" spellcheck="false">
+      <button class="btn" id="shuffle">🎲 Random game</button>
+    </div>
+  </header>
+
+  <nav class="chips" id="chips"></nav>
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <b>18 games</b> &middot; every one playable right here &middot; built by Blake<br>
+    Hosted on GitHub Pages &middot; Flowstate &amp; Penalty FC &amp; Chef Curry run on their own sites
+  </footer>
+</div>
+
+<script>
+const GAMES = [
+  {slug:'penalty-fc',        title:'Penalty FC',                tag:'Bruno vs the keeper. Click his shirt 8 three times.', cat:'Sports',  url:'https://nimblecozmo.github.io/penalty-fc/'},
+  {slug:'chef-curry',        title:'Chef Curry',                tag:'A basketball shooter with a backboard. Guaranteed score.', cat:'Sports', url:'https://nimblecozmo.github.io/chef-curry/'},
+  {slug:'soccer',            title:'Goal!',                     tag:"A Father's Day match. Score, then celebrate.", cat:'Sports', url:'games/soccer/index.html'},
+  {slug:'flowstate',         title:'Flowstate',                 tag:'Real GPU Navier-Stokes fluid. Draw your own walls.', cat:'Sandbox', url:'https://nimblecozmo.github.io/flowstate/'},
+  {slug:'fluid-demo',        title:'2D Fluid Simulator',        tag:'The original CPU fluid demo.', cat:'Sandbox', url:'games/fluid-demo/index.html'},
+  {slug:'minecraft-bounce',  title:'Minecraft Bounce',          tag:'Bounce the Steve block across the world.', cat:'Arcade', url:'https://nimblecozmo.github.io/minecraft-bounce/'},
+  {slug:'minecraft-bounce-clean', title:'Minecraft Bounce — No Blood', tag:'Same bounce, zero blood.', cat:'Arcade', url:'games/minecraft-bounce-clean/index.html'},
+  {slug:'geometry-dash',     title:'Geometry Dash',             tag:'Rhythm platformer. Tap to jump the spikes.', cat:'Arcade', url:'games/geometry-dash/index.html'},
+  {slug:'one-shot-geometry-dash', title:'One-Shot Geometry Dash', tag:'One shot. One life. Geometry Dash.', cat:'Arcade', url:'games/one-shot-geometry-dash/index.html'},
+  {slug:'lime-rider',        title:'Lime Rider',                tag:'The lime-green dirtbike. Send it flying.', cat:'Arcade', url:'games/lime-rider/index.html'},
+  {slug:'platformer',        title:'Mario-lite Platformer',     tag:'Jump the pits, grab the coins.', cat:'Arcade', url:'games/platformer/index.html'},
+  {slug:'snake',             title:'Snake',                     tag:'Classic snake with sound effects.', cat:'Arcade', url:'http://snake.interwebcoding.com/'},
+  {slug:'snake-2',           title:'Snake 2',                   tag:'Snake, but faster. With speed controls.', cat:'Arcade', url:'games/snake-2/index.html'},
+  {slug:'gem-snake',         title:'Gem Snake',                 tag:'Snake with gems to collect.', cat:'Arcade', url:'games/gem-snake/index.html'},
+  {slug:'tetris',            title:'Neon Tetris',               tag:'Stack the blocks. Clear the lines.', cat:'Puzzle', url:'games/tetris/index.html'},
+  {slug:'cube-tutor',        title:'Cube 3x3',                  tag:"A Rubik's cube tutor that teaches the layers.", cat:'Puzzle', url:'games/cube-tutor/index.html'},
+  {slug:'one-shot-f1',       title:'One-Shot F1',               tag:'Arcade racer on the grid.', cat:'Racing', url:'games/one-shot-f1/index.html'},
+  {slug:'f1-racing',         title:'F1 Racing Game',            tag:'Head-to-head F1 with real drivers.', cat:'Racing', url:'games/f1-racing/index.html'}
+];
+
+const grid = document.getElementById('grid');
+const chips = document.getElementById('chips');
+const search = document.getElementById('search');
+let activeCat = 'All';
+
+const CATS = ['All', ...Array.from(new Set(GAMES.map(g => g.cat)))];
+
+function cardHTML(g, i) {
+  return '<a class="card" href="' + g.url + '" target="_blank" rel="noopener" style="animation:fade .45s ' + (i*0.035) + 's both">'
+    + '<div class="thumb"><span class="cat" data-c="' + g.cat + '">' + g.cat + '</span>'
+    + '<img src="thumbs/' + g.slug + '.png" alt="' + g.title + '" loading="lazy" onerror="this.style.display=\'none\'"></div>'
+    + '<div class="info"><h2>' + g.title + '</h2><p>' + g.tag + '</p>'
+    + '<span class="play">PLAY</span></div></a>';
+}
+
+function render() {
+  const q = search.value.trim().toLowerCase();
+  const list = GAMES.filter(g =>
+    (activeCat === 'All' || g.cat === activeCat) &&
+    (!q || (g.title + ' ' + g.tag + ' ' + g.cat).toLowerCase().includes(q)));
+  grid.innerHTML = list.length
+    ? list.map(cardHTML).join('')
+    : '<div class="empty">No games match “' + q + '”.</div>';
+  document.getElementById('sub').textContent =
+    list.length + (list.length === 1 ? ' game' : ' games') + ' · ' + GAMES.length + ' total';
+}
+
+chips.innerHTML = CATS.map(c =>
+  '<button class="chip' + (c === 'All' ? ' on' : '') + '" data-cat="' + c + '">' + c + '</button>').join('');
+chips.addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  activeCat = b.dataset.cat;
+  [...chips.children].forEach(x => x.classList.toggle('on', x === b));
+  render();
+});
+search.addEventListener('input', render);
+
+document.getElementById('shuffle').addEventListener('click', () => {
+  const pool = GAMES.filter(g => activeCat === 'All' || g.cat === activeCat);
+  const g = pool[Math.floor(Math.random() * pool.length)];
+  window.open(g.url, '_blank', 'noopener');
+});
+
+// "/" focuses search
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== search) { e.preventDefault(); search.focus(); }
+});
+
+const st = document.createElement('style');
+st.textContent = '@keyframes fade{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}';
+document.head.appendChild(st);
+
+render();
+</script>
+</body>
+</html>

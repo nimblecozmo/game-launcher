@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Fluid Simulator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="canvas" width="600" height="600"></canvas>
+    <div class="controls">
+        <div class="slider-group">
+            <label for="viscosity">Viscosity:</label>
+            <input type="range" id="viscosity" min="0" max="0.001" step="0.00001" value="0.0001">
+            <label for="timestep">Timestep:</label>
+            <input type="range" id="timestep" min="0.01" max="0.2" step="0.01" value="0.1">
+        </div>
+        <div class="button-group">
+            <button id="startBtn">Start</button>
+            <button id="pauseBtn">Pause</button>
+            <button id="stopBtn">Stop</button>
+            <button id="resetBtn">Reset</button>
+            <button id="drawBtn">Draw Obstacles</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

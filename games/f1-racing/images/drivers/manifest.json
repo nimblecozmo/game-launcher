@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "size": 256,
+  "format": "png",
+  "basePath": "/images/drivers/",
+  "drivers": [
+    {
+      "slug": "verstappen",
+      "firstName": "Max",
+      "lastName": "Verstappen",
+      "number": 1,
+      "team": "Red Bull Racing",
+      "file": "verstappen.png"
+    },
+    {
+      "slug": "russell",
+      "firstName": "George",
+      "lastName": "Russell",
+      "number": 63,
+      "team": "Mercedes",
+      "file": "russell.png"
+    },
+    {
+      "slug": "hamilton",
+      "firstName": "Lewis",
+      "lastName": "Hamilton",
+      "number": 44,
+      "team": "Mercedes",
+      "file": "hamilton.png"
+    },
+    {
+      "slug": "piastri",
+      "firstName": "Oscar",
+      "lastName": "Piastri",
+      "number": 81,
+      "team": "McLaren",
+      "file": "piastri.png"
+    },
+    {
+      "slug": "antonelli",
+      "firstName": "Kimi",
+      "lastName": "Antonelli",
+      "number": 12,
+      "team": "Mercedes",
+      "file": "antonelli.png"
+    },
+    {
+      "slug": "norris",
+      "firstName": "Lando",
+      "lastName": "Norris",
+      "number": 4,
+      "team": "McLaren",
+      "file": "norris.png"
+    }
+  ]
+}

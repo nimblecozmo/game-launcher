@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>One-Shot F1 — Arcade Racer</title>
+<style>
+  /* =========================================================
+     Reset + page chrome
+     ========================================================= */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #0a0d12; color: #e8edf2;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  #app { position: fixed; inset: 0; }
+
+  /* The main 2D canvas. Letterboxed by the wrapper so HUD overlays line up. */
+  #stage { position: absolute; inset: 0; display: block; background: #0a0d12; image-rendering: auto; }
+
+  /* =========================================================
+     HUD: positioned absolutely over the canvas. The canvas
+     is the play field; HUD is HTML for crisp text.
+     ========================================================= */
+  .hud { position: absolute; pointer-events: none; font-variant-numeric: tabular-nums; }
+  .hud .panel {
+    background: rgba(8, 12, 18, 0.72);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 10px;
+    padding: 8px 12px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: auto;
+  }
+
+  /* Top-left: position + lap + time */
+  #hud-top-left { top: 12px; left: 12px; min-width: 230px; }
+  #hud-top-left .row { display: flex; align-items: baseline; gap: 8px; }
+  #hud-top-left .pos {
+    font-size: 34px; font-weight: 800; line-height: 1; color: #ffffff;
+    text-shadow: 0 0 8px rgba(0,0,0,0.5);
+  }
+  #hud-top-left .pos small { font-size: 14px; color: #9aa6b2; font-weight: 600; }
+  #hud-top-left .laptime { font-size: 14px; color: #c9d3dc; }
+  #hud-top-left .laptime b { color: #fff; }
+  #hud-top-left .best { font-size: 12px; color: #7fdc8a; }
+  #hud-top-left .best.bad { color: #ffb14a; }
+
+  /* Top-right: speed + damage + inputs */
+  #hud-top-right { top: 12px; right: 12px; min-width: 230px; text-align: right; }
+  #hud-top-right .speed {
+    font-size: 38px; font-weight: 800; line-height: 1; color: #ffffff;
+    text-shadow: 0 0 8px rgba(0,0,0,0.5);
+  }
+  #hud-top-right .speed small { font-size: 12px; color: #9aa6b2; font-weight: 600; }
+  #hud-top-right .damage-wrap { margin-top: 8px; }
+  #hud-top-right .damage-label { font-size: 11px; color: #9aa6b2; text-align: left; margin-bottom: 3px; }
+  #hud-top-right .damage-bar {
+    width: 100%; height: 10px; background: #1c2230; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+  }
+  #hud-top-right .damage-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4ade80, #facc15, #f87171); transition: width 80ms linear; }
+  #hud-top-right .damage-num { font-size: 12px; color: #c9d3dc; margin-top: 2px; text-align: left; }
+  #hud-top-right .inputs { margin-top: 6px; display: flex; gap: 6px; justify-content: flex-end; }
+  #hud-top-right .pill {
+    font-size: 10px; padding: 2px 6px; border-radius: 999px; background: #1c2230; color: #9aa6b2;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  #hud-top-right .pill.on { background: #2a3b1a; color: #c8f7c5; border-color: #3d5a25; }
+  #hud-top-right .pill.warn { background: #3a1a1a; color: #ffd2c8; border-color: #5a2d25; }
+  #hud-top-right .pill.assist-on { background: #1a2a3a; color: #c5dfff; border-color: #2a4a6a; }
+  #hud-top-right .pill.rev-on { background: #5a1a1a; color: #ffd2c8; border-color: #c0392b; box-shadow: 0 0 6px rgba(192,57,43,0.6); }
+  #hud-top-right .speed.reverse { color: #ff6b6b; }
+  #hud-top-right .speed .gear { font-size: 22px; color: #ff6b6b; font-weight: 800; margin-left: 4px; vertical-align: 6px; display: none; }
+  #hud-top-right .speed.reverse .gear { display: inline; }
+  #hud-top-right .pit-indicator {
+    margin-top: 6px; font-size: 12px; padding: 3px 8px; border-radius: 6px;
+    background: #f59e0b; color: #1a1300; font-weight: 700; display: none;
+  }
+  #hud-top-right .pit-indicator.show { display: inline-block; }
+  #hud-top-right .pit-indicator.speeding { background: #ef4444; color: #fff; }
+
+  /* Bottom-center: minimap (a separate canvas, rendered to from the main loop) */
+  #minimap-wrap {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(8, 12, 18, 0.72);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 10px; padding: 6px;
+  }
+  #minimap { display: block; background: #0d1320; border-radius: 6px; }
+  #minimap-label { font-size: 10px; color: #6f7d8c; text-align: center; margin-top: 2px; }
+
+  /* Bottom-left: lap counter + assists hint */
+  #hud-bottom-left { bottom: 12px; left: 12px; max-width: 260px; }
+  #hud-bottom-left .laps { font-size: 14px; }
+  #hud-bottom-left .laps b { font-size: 22px; color: #fff; }
+  #hud-bottom-left .hint { font-size: 11px; color: #6f7d8c; margin-top: 4px; line-height: 1.4; }
+
+  /* Bottom-right: standings */
+  #hud-bottom-right { bottom: 12px; right: 12px; min-width: 200px; }
+  #hud-bottom-right .title { font-size: 11px; color: #6f7d8c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  #hud-bottom-right .standings { font-size: 12px; line-height: 1.5; }
+  #hud-bottom-right .standings .row { display: flex; justify-content: space-between; gap: 10px; }
+  #hud-bottom-right .standings .row.self { color: #fff; font-weight: 700; }
+  #hud-bottom-right .standings .row .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  #hud-bottom-right .standings .row .gap { color: #6f7d8c; font-size: 11px; }
+
+  /* =========================================================
+     Starting lights overlay
+     ========================================================= */
+  #lights {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    display: flex; gap: 14px; padding: 18px 26px;
+    background: rgba(0,0,0,0.6); border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+    pointer-events: none;
+  }
+  #lights .light {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #2a0a0a; border: 1px solid #1a0606;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.6);
+  }
+  #lights .light.on { background: #ef1a1a; box-shadow: 0 0 18px #ff2a2a, 0 0 4px #ff6868 inset; }
+  #lights.go .light { background: #1a4a1a; box-shadow: none; } /* all out = GO */
+
+  #lights-label {
+    position: absolute; top: calc(50% + 60px); left: 50%; transform: translateX(-50%);
+    font-size: 14px; color: #c9d3dc; background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 8px;
+    pointer-events: none; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  /* =========================================================
+     Menus (title / settings / results)
+     ========================================================= */
+  .overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(4, 6, 10, 0.78); z-index: 10; backdrop-filter: blur(2px);
+  }
+  .overlay.hidden { display: none; }
+  .menu {
+    background: #11161f; border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px; padding: 28px 32px; min-width: 360px; max-width: 92vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .menu h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: 0.04em; }
+  .menu h1 .accent { color: #ef1a1a; }
+  .menu .subtitle { color: #6f7d8c; font-size: 13px; margin-bottom: 18px; }
+  .menu .group { margin-bottom: 14px; }
+  .menu .group .label { font-size: 11px; color: #6f7d8c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .menu .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; gap: 10px; }
+  .menu .row + .row { border-top: 1px dashed rgba(255,255,255,0.06); }
+  .menu .row .name { font-size: 14px; }
+  .menu .row .desc { font-size: 11px; color: #6f7d8c; }
+  .menu .btn {
+    background: #2a3242; color: #fff; border: 1px solid #3a4554;
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+    transition: background 80ms;
+  }
+  .menu .btn:hover { background: #384258; }
+  .menu .btn.primary { background: #ef1a1a; border-color: #c01414; }
+  .menu .btn.primary:hover { background: #ff3030; }
+  .menu .btn.big { padding: 12px 18px; font-size: 16px; width: 100%; margin-top: 6px; }
+  .menu .seg { display: inline-flex; border: 1px solid #3a4554; border-radius: 8px; overflow: hidden; }
+  .menu .seg button {
+    background: #1a212c; color: #c9d3dc; border: 0; padding: 6px 10px; font-size: 12px; cursor: pointer;
+  }
+  .menu .seg button + button { border-left: 1px solid #3a4554; }
+  .menu .seg button.on { background: #ef1a1a; color: #fff; }
+  .menu .actions { display: flex; gap: 8px; margin-top: 14px; }
+  .menu kbd {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    background: #1a212c; border: 1px solid #2a3242; border-bottom-width: 2px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #c9d3dc;
+  }
+
+  /* Results table */
+  .results { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .results th, .results td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .results th { color: #6f7d8c; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .results td.pos { font-weight: 700; }
+  .results td.you { color: #ef1a1a; }
+  .results td .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  /* Pause overlay (small, semi-transparent so the player can still see the action) */
+  #pause-overlay { background: rgba(4, 6, 10, 0.45); }
+  #pause-overlay .menu { background: rgba(17, 22, 31, 0.92); }
+
+  /* Mobile touch controls (visible only on coarse pointers) */
+  #touch { position: absolute; inset: 0; pointer-events: none; display: none; }
+  @media (pointer: coarse) { #touch { display: block; } }
+  .touch-btn {
+    position: absolute; width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.20);
+    color: #fff; font-size: 22px; display: flex; align-items: center; justify-content: center;
+    pointer-events: auto; user-select: none;
+  }
+  .touch-btn:active { background: rgba(255,255,255,0.20); }
+  #t-left  { bottom: 20px; left: 20px; }
+  #t-right { bottom: 20px; left: 100px; }
+  #t-accel { bottom: 20px; right: 20px; background: rgba(40,180,80,0.18); border-color: rgba(40,180,80,0.5); }
+  #t-brake { bottom: 20px; right: 100px; background: rgba(220,60,60,0.18); border-color: rgba(220,60,60,0.5); }
+  #t-reverse { bottom: 100px; right: 100px; background: rgba(192,57,43,0.30); border-color: rgba(255,107,107,0.7); color: #ffcccc; font-weight: 800; }
+  #t-pit   { bottom: 100px; right: 20px; width: 56px; height: 56px; font-size: 14px; background: rgba(245,158,11,0.20); border-color: rgba(245,158,11,0.5); }
+</style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="stage"></canvas>
+
+    <!-- HUD -->
+    <div id="hud-top-left" class="hud">
+      <div class="panel">
+        <div class="row">
+          <div class="pos"><span id="hud-pos">P1</span><small>/6</small></div>
+          <div style="flex:1"></div>
+        </div>
+        <div class="laptime">Lap <b id="hud-laptime">0:00.00</b></div>
+        <div class="best" id="hud-best">Best: —</div>
+      </div>
+    </div>
+
+    <div id="hud-top-right" class="hud">
+      <div class="panel">
+        <div class="speed" id="hud-speed-wrap"><span id="hud-speed">0</span><small>KM/H</small><span class="gear">R</span></div>
+        <div class="damage-wrap">
+          <div class="damage-label">DAMAGE</div>
+          <div class="damage-bar"><div class="damage-fill" id="hud-damage-fill"></div></div>
+          <div class="damage-num"><span id="hud-damage">0</span>/100</div>
+        </div>
+        <div class="inputs">
+          <span class="pill" id="hud-throttle">THR</span>
+          <span class="pill" id="hud-brake">BRK</span>
+          <span class="pill" id="hud-reverse">REV</span>
+          <span class="pill" id="hud-abs">ABS</span>
+          <span class="pill" id="hud-tc">TC</span>
+        </div>
+        <div class="pit-indicator" id="hud-pit">PIT LANE</div>
+      </div>
+    </div>
+
+    <div id="hud-bottom-left" class="hud">
+      <div class="panel">
+        <div class="laps">Lap <b id="hud-lap">1</b> / <span id="hud-totallaps">5</span></div>
+        <div class="hint">
+          <kbd>↑</kbd>/<kbd>W</kbd> throttle · <kbd>↓</kbd>/<kbd>S</kbd> brake · <kbd>Shift</kbd>+<kbd>S</kbd> reverse<br/>
+          <kbd>←</kbd><kbd>→</kbd>/<kbd>A</kbd><kbd>D</kbd> steer · <kbd>Space</kbd> handbrake · <kbd>P</kbd> pit · <kbd>Esc</kbd> pause
+        </div>
+      </div>
+    </div>
+
+    <div id="hud-bottom-right" class="hud">
+      <div class="panel">
+        <div class="title">Standings</div>
+        <div class="standings" id="hud-standings"></div>
+      </div>
+    </div>
+
+    <div id="minimap-wrap" class="hud">
+      <canvas id="minimap" width="220" height="140"></canvas>
+      <div id="minimap-label">MAP</div>
+    </div>
+
+    <!-- Starting lights -->
+    <div id="lights" class="hud">
+      <div class="light" id="light-0"></div>
+      <div class="light" id="light-1"></div>
+      <div class="light" id="light-2"></div>
+      <div class="light" id="light-3"></div>
+      <div class="light" id="light-4"></div>
+    </div>
+    <div id="lights-label" class="hud" style="display:none;">WAITING…</div>
+
+    <!-- Touch controls -->
+    <div id="touch">
+      <div class="touch-btn" id="t-left">◀</div>
+      <div class="touch-btn" id="t-right">▶</div>
+      <div class="touch-btn" id="t-brake">■</div>
+      <div class="touch-btn" id="t-accel">▲</div>
+      <div class="touch-btn touch-btn-rev" id="t-reverse">R</div>
+      <div class="touch-btn" id="t-pit">PIT</div>
+    </div>
+
+    <!-- Title menu -->
+    <div class="overlay" id="menu-title">
+      <div class="menu">
+        <h1>One-Shot <span class="accent">F1</span></h1>
+        <div class="subtitle">Arcade racing. Forgiving handling. Five red lights, then go.</div>
+
+        <div class="group">
+          <div class="label">Difficulty</div>
+          <div class="row">
+            <div>
+              <div class="name" id="diff-name">Rookie</div>
+              <div class="desc" id="diff-desc">Slowest AI, every assist on. Just drive.</div>
+            </div>
+            <div class="seg" id="diff-seg">
+              <button data-diff="rookie" class="on">Rookie</button>
+              <button data-diff="amateur">Amateur</button>
+              <button data-diff="pro">Pro</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="label">Assists <span style="text-transform:none;letter-spacing:0;color:#6f7d8c">(on by default — that's the point)</span></div>
+          <div class="row"><div class="name">ABS</div><div class="seg" data-toggle="abs"><button class="on">On</button><button>Off</button></div></div>
+          <div class="row"><div class="name">Traction control</div><div class="seg" data-toggle="tc"><button class="on">On</button><button>Off</button></div></div>
+          <div class="row"><div class="name">Auto-brake</div><div class="seg" data-toggle="autobrake"><button class="on">On</button><button>Off</button></div></div>
+          <div class="row"><div class="name">Steering assist</div><div class="seg" data-toggle="steerassist"><button class="on">On</button><button>Off</button></div></div>
+        </div>
+
+        <div class="group">
+          <div class="label">Race</div>
+          <div class="row"><div class="name">Laps</div>
+            <div class="seg" data-toggle="laps">
+              <button>3</button><button class="on">5</button><button>10</button><button>15</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary big" id="btn-start">RACE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause menu -->
+    <div class="overlay hidden" id="menu-pause">
+      <div class="menu">
+        <h1>Paused</h1>
+        <div class="subtitle">Press <kbd>Esc</kbd> or click Resume.</div>
+        <div class="actions">
+          <button class="btn primary" id="btn-resume">Resume</button>
+          <button class="btn" id="btn-restart-from-pause">Restart</button>
+          <button class="btn" id="btn-quit">Quit to menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="overlay hidden" id="menu-results">
+      <div class="menu" style="min-width:480px;">
+        <h1>Race <span class="accent">Complete</span></h1>
+        <div class="subtitle" id="results-sub">Final standings</div>
+        <table class="results" id="results-table">
+          <thead><tr><th>Pos</th><th>Driver</th><th>Total time</th><th>Best lap</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="actions">
+          <button class="btn primary" id="btn-restart">Race again</button>
+          <button class="btn" id="btn-back-menu">Main menu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+
+/* =============================================================================
+   ONE-SHOT F1 — single-file arcade racer
+   -----------------------------------------------------------------------------
+   - 6 cars, 5 AI, 5-light start, pit lane, damage, easy-to-drive defaults
+   - Pure 2D top-down, procedural everything, no external assets
+   - Fixed-timestep physics at 60Hz, render via requestAnimationFrame
+   ============================================================================= */
+
+/* ----- Global tunables (touched in code, explained near use) ---------------- */
+const CFG = {
+  // Physics
+  FIXED_DT: 1 / 60,
+  MAX_SUBSTEPS: 5,
+
+  // Car (player defaults — easy)
+  CAR: {
+    WIDTH: 22, LENGTH: 44,
+    MASS: 720,
+    ENGINE_FORCE: 9200,    // Newtons-ish; tuned for arcade feel
+    BRAKE_FORCE: 14000,
+    REVERSE_FORCE: 3000,
+    DRAG: 0.55,           // linear drag coefficient
+    ROLLING: 0.6,         // constant rolling resistance
+    MAX_STEER: 0.55,      // radians
+    STEER_RATE: 6.0,      // how fast steering ramps in/out
+    GRIP_LAT: 9.0,        // lateral grip — high = grippy
+    GRIP_LONG: 1.0,       // longitudinal grip (1 = no traction loss under throttle)
+  },
+
+  // Track
+  TRACK_WIDTH: 150,
+  // Pit lane: drive lane only (not counting the box row beside it).
+  // A 22-wide car needs at least 22 + margin; 50 gives the car plenty of
+  // clearance at any approach angle.
+  PIT_WIDTH: 50,
+  PIT_BOX_WIDTH: 30,     // painted depth of each pit box PERPENDICULAR to drive lane (y, into the wall)
+  PIT_BOX_LENGTH: 10,    // painted length of each pit box ALONG the drive lane (x)
+  PIT_LIMIT_KMH: 80,
+  // Pit stop (time stationary at the box, repair duration).
+  // Each car rolls its own random duration in [PIT_STOP_MIN, PIT_STOP_MAX]
+  // uniformly, on arrival at its box. Tune the window for race feel.
+  PIT_STOP_MIN_S: 2.0,
+  PIT_STOP_MAX_S: 6.0,
+
+  // Race
+  TOTAL_LAPS_DEFAULT: 5,
+
+  // AI
+  AI: {
+    BASE_PACE: 1.0,       // multiplier on top speed per difficulty
+    JITTER: 0.04,         // per-corner speed jitter
+    MISTAKE_CHANCE: 0.004 // per AI per physics tick (~0.24/sec)
+  },
+
+  // Damage
+  DAMAGE: {
+    CRASH_SPEED_THRESHOLD: 40,  // km/h above which contact damages
+    WALL_COEFF: 0.10,           // damage = (impactSpeedKmh - THRESHOLD) * WALL_COEFF (clamped)
+    CAR_COEFF: 0.06,
+    LIMP_THRESHOLD: 80,
+    LIMP_FACTOR: 0.55,          // top speed multiplier when limping
+    DAMAGE_SPEED_PENALTY: 0.005 // per damage point above 50
+  },
+
+  // Colors per car (player is index 0)
+  COLORS: [
+    "#ef1a1a", // player — racing red
+    "#3aa6ff", // AI 1
+    "#ffd23a", // AI 2
+    "#3aff7a", // AI 3
+    "#b06bff", // AI 4
+    "#ff8a3a", // AI 5
+  ],
+  DRIVER_NAMES: [
+    "You", "M. Senna", "A. Prost", "K. Räikkönen", "D. Ricciardo", "L. Norris"
+  ],
+
+  // Lights
+  LIGHTS: {
+    ON_AT_START: 0.4,    // seconds of "all red" hold before first extinguishes
+    STEP: 0.9,           // seconds between each light going out
+  }
+};
+
+/* ----- Math helpers --------------------------------------------------------- */
+const TAU = Math.PI * 2;
+const clamp = (v, lo, hi) => v < lo ? lo : (v > hi ? hi : v);
+const lerp  = (a, b, t)  => a + (b - a) * t;
+const sign  = (x) => x < 0 ? -1 : (x > 0 ? 1 : 0);
+const wrap  = (x, m) => { x = x % m; if (x < 0) x += m; return x; };
+const dist2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx*dx + dy*dy; };
+
+/* ----- Seeded RNG (Mulberry32) for deterministic first frame --------------- */
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s |= 0; s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rng = makeRng(20260604);
+
+/* =============================================================================
+   TRACK
+   - A list of centerline waypoints forming a closed loop. Track is drawn as a
+     thick stroked path; walls are implicit (anything outside the track band).
+   - Pit lane is a separate polyline that branches off the main straight on
+     the inside, runs parallel, and rejoins.
+   ============================================================================= */
+const TRACK = (() => {
+  // Hand-authored waypoints (in world units). Form an oval-with-chicane loop.
+  // Designed to be wide, easy, with one tightish hairpin and a sweeper.
+  const pts = [
+    [   0,    0], // start/finish
+    [ 280,    0],
+    [ 560,   20],
+    [ 820,   80],
+    [1040,  200],
+    [1180,  360],
+    [1240,  560],
+    [1200,  760],
+    [1080,  920],
+    [ 880, 1020],
+    [ 660, 1060],
+    [ 460, 1020],
+    [ 280,  920],
+    [ 140,  800],
+    [  40,  660],
+    [ -20,  500],
+    [ -60,  340],
+    [ -80,  180],
+    [ -80,   40],
+  ];
+  // Close the loop by returning to start
+  return buildTrack(pts);
+})();
+
+function buildTrack(rawPts) {
+  // Catmull-Rom-ish smoothing: interpolate extra points between waypoints for a smooth path.
+  const pts = [];
+  const N = rawPts.length;
+  for (let i = 0; i < N; i++) {
+    const p0 = rawPts[(i - 1 + N) % N];
+    const p1 = rawPts[i];
+    const p2 = rawPts[(i + 1) % N];
+    const p3 = rawPts[(i + 2) % N];
+    const STEPS = 12; // density
+    for (let s = 0; s < STEPS; s++) {
+      const t = s / STEPS;
+      // Catmull-Rom basis
+      const t2 = t * t, t3 = t2 * t;
+      const x = 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * t2 + (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t3);
+      const y = 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * t2 + (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t3);
+      pts.push([x, y]);
+    }
+  }
+
+  // Compute cumulative arc length and tangents
+  const cum = [0];
+  const tans = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    tans.push([b[0] - a[0], b[1] - a[1]]);
+  }
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i][0] - pts[i-1][0];
+    const dy = pts[i][1] - pts[i-1][1];
+    cum.push(cum[i-1] + Math.hypot(dx, dy));
+  }
+  // Tangent directions
+  for (let i = 0; i < tans.length; i++) {
+    const len = Math.hypot(tans[i][0], tans[i][1]) || 1;
+    tans[i][0] /= len; tans[i][1] /= len;
+  }
+  const totalLen = cum[cum.length - 1] + Math.hypot(
+    pts[0][0] - pts[pts.length-1][0], pts[0][1] - pts[pts.length-1][1]
+  );
+
+  // Pit lane: a side road alongside the start straight, on the inside (y<0).
+  //
+  // Layout (top-down, +x east, -y north/inside):
+  //
+  //   Pit boxes (one row, painted as colored rectangles) ........... y ≈ -190
+  //   ───────────────────────────────────────────────
+  //   Drive lane (the pit polyline cars follow) .... y ≈ -130, width 50
+  //   ───────────────────────────────────────────────  y ≈ -75 (main track inside edge)
+  //   Main track (start straight) centerline y=0
+  //
+  // Cars approach the pits ALONGSIDE the main track (on the inside of the
+  // start straight), turn down into the drive lane, stop beside their colored
+  // pit box, and then rejoin. The pit polyline below is the *centerline* of
+  // the drive lane; the visible road is stroked at PIT_WIDTH.
+  //
+  // The polyline uses several intermediate points so the entry and exit
+  // approach curves are smooth, not hard cuts.
+  const trackInsideEdgeY = pts[0][1] - CFG.TRACK_WIDTH * 0.5;   // y = -75
+  const pitDriveY        = pts[0][1] - 130;                    // y = -130 (drive lane center)
+  const pitBoxY          = pts[0][1] - 190;                    // y = -190 (box row)
+  const pitEntryX        = -10;                                // entry opening, just W of start line
+  const pitExitX         =  220;                               // exit opening, on the straight
+  const pitEntryApproachX = -40;                               // approach tangent on main line
+  const pitExitApproachX  =  250;                              // merge-out tangent on main line
+
+  const pitEntry = { s: 0.0, p: [pitEntryX,  trackInsideEdgeY] };
+  const pitExit  = { s: 0.05, p: [pitExitX,  trackInsideEdgeY] };
+
+  // The polyline is the centerline of the pit drive lane. The car enters
+  // from the main track at pitPath[0] moving EAST and follows the path east
+  // and back up to the main track. Cars approach the pits from ALONGSIDE
+  // the main track (inside lane), not cutting across it.
+  const pitPath = [
+    // 0) Entry opening on the inside edge of the start straight. The car
+    //    is teleported here by updatePit() and faces east (toward pitPath[1]).
+    [pitEntryX,        trackInsideEdgeY],          // (-10, -75)
+    // 1) Continue east a short distance on the inside edge (still on the
+    //    main track edge) before turning down.
+    [pitEntryX + 25,   trackInsideEdgeY],          // ( 15, -75)
+    // 2) Begin the S-curve: drop and curve into the drive lane.
+    [pitEntryX + 50,   trackInsideEdgeY - 25],     // ( 40, -100)
+    [pitEntryX + 80,   pitDriveY + 5],             // ( 70, -125)
+    // 4) Settled on the drive lane centerline.
+    [pitEntryX + 110,  pitDriveY],                 // (100, -130)
+    // 5) Long east-west drive lane (the lane where the boxes live beside).
+    [pitExitX - 30,    pitDriveY],                 // (190, -130)
+    // 6) Begin symmetric S-curve up to the main line.
+    [pitExitX,         pitDriveY + 5],             // (220, -125)
+    [pitExitX + 20,    trackInsideEdgeY - 25],     // (240, -100)
+    // 8) Back on the main line inside edge, ready to rejoin.
+    [pitExitX + 45,    trackInsideEdgeY],          // (265, -75)
+  ];
+  // Pit boxes: spaced evenly ALONG the flat drive-lane segment (the long
+  // straight portion where the car is on the lane centerline), offset
+  // perpendicular to the drive lane (toward y more negative — i.e. further
+  // inside). One box per car, in grid order (idx 0 = pole, leftmost).
+  //
+  // The drive lane's flat segment runs from x=100 to x=190 (90m). The box
+  // x-range sits inside that flat segment so the 'toBox' detour trigger
+  // (which requires |y - driveY| < 6) can fire for every box.
+  const pitBoxes = [];
+  const pitBoxStartX = 110;  // first box center
+  const pitBoxEndX   = 180;  // last box center
+  for (let i = 0; i < 6; i++) {
+    const t = (i + 0.5) / 6; // evenly spaced
+    const x = lerp(pitBoxStartX, pitBoxEndX, t);
+    pitBoxes.push({ x, y: pitBoxY, occupied: false, carIdx: i });
+  }
+
+  return { points: pts, cum, totalLen, tans, pitPath, pitBoxes, pitEntry, pitExit, pitDriveY, pitBoxY };
+}
+
+/* Convert arc-length s (0..totalLen) to a point on the centerline (interpolated) */
+function trackAt(s) {
+  const len = TRACK.totalLen;
+  s = wrap(s, len);
+  // Binary search cum
+  const cum = TRACK.cum, pts = TRACK.points;
+  let lo = 0, hi = cum.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (cum[mid] < s) lo = mid + 1; else hi = mid;
+  }
+  const i = Math.max(0, lo - 1);
+  const seg = cum[i+1] - cum[i] || 1;
+  const t = clamp((s - cum[i]) / seg, 0, 1);
+  // Don't interpolate across the wrap boundary here — s is already wrapped.
+  const a = pts[i], b = pts[(i + 1) % pts.length];
+  return { x: lerp(a[0], b[0], t), y: lerp(a[1], b[1], t) };
+}
+
+/* Tangent direction at arc-length s */
+function trackTangentAt(s) {
+  s = wrap(s, TRACK.totalLen);
+  const cum = TRACK.cum, tans = TRACK.tans, pts = TRACK.points;
+  let lo = 0, hi = cum.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (cum[mid] < s) lo = mid + 1; else hi = mid;
+  }
+  const i = Math.max(0, lo - 1);
+  return tans[i];
+}
+
+/* Distance from world point to centerline; also returns nearest arc-length s and tangent */
+function nearestOnTrack(x, y) {
+  const pts = TRACK.points;
+  const cum = TRACK.cum;
+  let best = { d2: Infinity, s: 0, t: 0, nx: 0, ny: 0 };
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    const ax = b[0] - a[0], ay = b[1] - a[1];
+    const len2 = ax*ax + ay*ay;
+    let t = ((x - a[0]) * ax + (y - a[1]) * ay) / (len2 || 1);
+    t = clamp(t, 0, 1);
+    const px = a[0] + ax * t, py = a[1] + ay * t;
+    const d2 = (x - px) * (x - px) + (y - py) * (y - py);
+    if (d2 < best.d2) {
+      const segStart = cum[i];
+      const segEnd   = cum[i+1] !== undefined ? cum[i+1] : TRACK.totalLen;
+      const s = segStart + t * (segEnd - segStart);
+      // normal points from segment to query point
+      const nx = x - px, ny = y - py;
+      const nlen = Math.hypot(nx, ny) || 1;
+      best = { d2, s, t, nx: nx / nlen, ny: ny / nlen, px, py };
+    }
+  }
+  best.d = Math.sqrt(best.d2);
+  return best;
+}
+
+/* =============================================================================
+   AUDIO (WebAudio, procedural)
+   ============================================================================= */
+const Audio = (() => {
+  let ctx = null;
+  let engineOsc = null, engineGain = null;
+  let limiter = null, lightsStep = null, crash = null;
+
+  function ensure() {
+    if (ctx) return ctx;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    } catch (e) { return null; }
+    return ctx;
+  }
+  function resume() {
+    const c = ensure();
+    if (c && c.state === "suspended") c.resume();
+  }
+  function startEngine() {
+    const c = ensure(); if (!c) return;
+    if (engineOsc) return;
+    // Two stacked saws for a richer engine tone
+    engineOsc = c.createOscillator();
+    engineOsc.type = "sawtooth";
+    engineOsc.frequency.value = 80;
+    const sub = c.createOscillator(); sub.type = "square"; sub.frequency.value = 40;
+    engineGain = c.createGain();
+    engineGain.gain.value = 0.0;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 600;
+    engineOsc.connect(lp); sub.connect(lp);
+    lp.connect(engineGain);
+    engineGain.connect(c.destination);
+    engineOsc.start(); sub.start();
+    // Ramp to a low idle
+    engineGain.gain.setTargetAtTime(0.05, c.currentTime, 0.1);
+  }
+  function setEngine(speed01, throttle01, reversing) {
+    const c = ensure(); if (!c || !engineOsc) return;
+    // Lower base frequency in reverse — sounds "wrong gear" / "limp home"
+    const base = (reversing ? 45 : 70) + speed01 * 320;
+    engineOsc.frequency.setTargetAtTime(base, c.currentTime, 0.05);
+    // Quieter in reverse too
+    const vol = (reversing ? 0.025 : 0.04) + throttle01 * 0.08 + speed01 * 0.04;
+    engineGain.gain.setTargetAtTime(vol, c.currentTime, 0.08);
+  }
+  function stopEngine() {
+    const c = ensure(); if (!c || !engineGain) return;
+    engineGain.gain.setTargetAtTime(0, c.currentTime, 0.1);
+  }
+  function playLightsStep(idx) {
+    const c = ensure(); if (!c) return;
+    const t = c.currentTime;
+    const o = c.createOscillator();
+    o.type = "square";
+    o.frequency.setValueAtTime(560, t);
+    o.frequency.exponentialRampToValueAtTime(380, t + 0.08);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + 0.15);
+  }
+  function playGo() {
+    const c = ensure(); if (!c) return;
+    const t = c.currentTime;
+    const o = c.createOscillator(); o.type = "sine";
+    o.frequency.setValueAtTime(880, t);
+    o.frequency.exponentialRampToValueAtTime(1320, t + 0.25);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.40);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + 0.45);
+  }
+  function playCrash(intensity) {
+    const c = ensure(); if (!c) return;
+    const t = c.currentTime;
+    // Noise burst
+    const buf = c.createBuffer(1, c.sampleRate * 0.25, c.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400;
+    const g = c.createGain(); g.gain.value = clamp(0.10 + intensity * 0.4, 0.05, 0.6);
+    src.connect(lp); lp.connect(g); g.connect(c.destination);
+    src.start(t);
+  }
+  function playCheer() {
+    const c = ensure(); if (!c) return;
+    const t0 = c.currentTime;
+    [0, 0.15, 0.30, 0.45].forEach((dt, i) => {
+      const t = t0 + dt;
+      const o = c.createOscillator(); o.type = "triangle";
+      o.frequency.value = [660, 880, 990, 1320][i];
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.15, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+      o.connect(g); g.connect(c.destination);
+      o.start(t); o.stop(t + 0.3);
+    });
+  }
+  return { resume, startEngine, setEngine, stopEngine, playLightsStep, playGo, playCrash, playCheer };
+})();
+
+/* =============================================================================
+   CAR
+   ============================================================================= */
+class Car {
+  constructor(opts) {
+    this.idx = opts.idx;
+    this.name = opts.name;
+    this.color = opts.color;
+    this.isPlayer = !!opts.isPlayer;
+
+    // Pose: x,y in world units; angle in radians; s = arc-length on track
+    this.x = opts.x; this.y = opts.y; this.angle = opts.angle; this.s = opts.s;
+
+    // Velocity in body frame: vx (forward), vy (lateral). The car always
+    // tries to align its forward axis with its `angle`; vy is a "slip" term.
+    this.vx = 0; this.vy = 0; this.omega = 0; // angular vel for visual flair
+    this.steer = 0; // current steering angle (radians)
+
+    // Damage
+    this.damage = 0;
+    this.limp = false;
+
+    // Lap / progress
+    this.lap = 1;
+    this.lastS = opts.s;
+    this.bestLap = Infinity;
+    this.lapStartTime = 0;
+    this.totalTime = 0;
+    this.finished = false;
+    this.finishTime = 0;
+
+    // Pit
+    this.pitRequest = false;
+    this.inPit = false;
+    this.pitT = 0;         // 0..1 progress along pit path
+    this.pitStopTimer = 0; // seconds stationary at pit box
+    this.pitStopDuration = CFG.PIT_STOP_MIN_S; // total repair time for THIS stop (rolled on arrival)
+    this.pitSpeeding = false;
+    // 'drive' = following the pit polyline; 'toBox' = detouring sideways
+    //   to the assigned pit box; 'atBox' = stopped at the box for repair;
+    //   'fromBox' = pulling back into the drive lane after repair.
+    this.pitPhase = 'drive';
+    this.pitDetourT = 0;   // 0..1 progress along the box detour segment
+    this.pitDriveResumeX = 0; // drive-lane X to resume polyline at after leaving the box
+
+    // AI state
+    this.ai = opts.isPlayer ? null : {
+      pace: 1.0,        // top speed multiplier
+      targetS: opts.s,  // waypoint to chase
+      mistakeT: 0,      // seconds of "wide" cornering left
+      lastTargetIdx: 0
+    };
+
+    // Top speed in m/s (km/h / 3.6). Player default 280; AI varies a touch.
+    this.topSpeed = (this.isPlayer ? 78 : (74 + rng() * 8)); // m/s
+    this.cornerSpeed = this.isPlayer ? 38 : (34 + rng() * 6);
+    this.accel = 1.0;   // top speed scalar affected by damage
+  }
+
+  resetTo(x, y, angle, s) {
+    this.x = x; this.y = y; this.angle = angle; this.s = s;
+    this.vx = 0; this.vy = 0; this.omega = 0; this.steer = 0;
+    this.damage = 0; this.limp = false;
+    this.lap = 1; this.lastS = s; this.bestLap = Infinity;
+    this.lapStartTime = 0; this.totalTime = 0; this.finished = false; this.finishTime = 0;
+    this.pitRequest = false; this.inPit = false; this.pitT = 0;
+    this.pitStopTimer = 0; this.pitStopDuration = CFG.PIT_STOP_MIN_S; this.pitSpeeding = false;
+    this.pitPhase = 'drive'; this.pitDetourT = 0; this.pitDriveResumeX = 0;
+    this.accel = 1.0;
+    if (this.ai) { this.ai.targetS = s; this.ai.mistakeT = 0; this.ai.lastTargetIdx = 0; this.ai.pace = 1.0; }
+  }
+
+  /* ---- Input handling for the player ------------------------------------ */
+  applyPlayerInput(input, dt) {
+    if (!this.isPlayer || !Race.canDrive()) return;
+
+    // Steering ramps toward target based on input.
+    //
+    // Sign convention: in the code's frame, +steer is a clockwise rotation
+    // on a y-down screen — i.e. the car turns to the driver's RIGHT, with
+    // the front of the car pushing the rear to the left. So pressing RIGHT
+    // (turn-right intent) must map to +steer, and LEFT (turn-left intent)
+    // must map to -steer.
+    //
+    // The original mapping was swapped, so pressing LEFT gave +steer and
+    // pressing RIGHT gave -steer — the car visibly steered in the opposite
+    // direction of the player's input. Flip the signs here to fix it.
+    const steerTarget = (input.left ? -1 : 0) + (input.right ? 1 : 0);
+    const desired = steerTarget * CFG.CAR.MAX_STEER;
+    this.steer = lerp(this.steer, desired, clamp(CFG.CAR.STEER_RATE * dt, 0, 1));
+
+    // Steering assist: if the car is slipping sideways (vy) the same way the
+    // player is steering, ease the steering toward zero to prevent spin-outs.
+    if (state.settings.steerassist) {
+      const slipDir = sign(this.vy);
+      if (slipDir !== 0 && sign(this.steer) === slipDir) {
+        this.steer = lerp(this.steer, 0, clamp(3.0 * dt, 0, 1));
+      }
+    }
+
+    // Throttle / brake / reverse
+    // - accel: throttle forward
+    // - brake: normal braking (uses BRAKE_FORCE while vx > 0.3)
+    // - reverse: shift+S held — applies REVERSE_FORCE while vx < ~3 m/s.
+    //   If we're still rolling forward fast, we let normal brake take over
+    //   so the player has to slow down before reversing — feels less "cheaty".
+    let throttle = input.accel ? 1 : 0;
+    let brake    = input.brake  ? 1 : 0;
+    let reverse  = input.reverse && this.vx < 3 ? 1 : 0;
+
+    // Auto-brake: when entering a sharp corner ahead, briefly ease off throttle
+    // and apply gentle brake so the player can hold W through most corners.
+    if (state.settings.autobrake && throttle > 0) {
+      const lookAhead = 80; // m
+      const ahead = trackAt(this.s + lookAhead);
+      const t = trackTangentAt(this.s + lookAhead);
+      const here = trackTangentAt(this.s);
+      // Heading change in next `lookAhead` meters; if large, ease off
+      const dAng = Math.atan2(t[1], t[0]) - Math.atan2(here[1], here[0]);
+      const dn = Math.atan2(Math.sin(dAng), Math.cos(dAng));
+      const sharpness = Math.abs(dn);
+      const speed = this.vx;
+      // Need-braking if very fast and sharp corner ahead
+      if (sharpness > 0.4 && speed > this.cornerSpeed * 0.95) {
+        throttle = 0;
+        brake = 0.4;
+      } else if (sharpness > 0.25 && speed > this.cornerSpeed * 1.05) {
+        throttle *= 0.3;
+      }
+    }
+
+    // Handbrake (visual flair / tighter turning; not required)
+    const handbrake = !!input.handbrake;
+
+    this._applyDriveForces(throttle, brake, handbrake, dt, reverse);
+  }
+
+  /* ---- AI driving -------------------------------------------------------- */
+  applyAI(dt) {
+    if (this.isPlayer) return;
+    if (!Race.canDrive()) return;
+    const ai = this.ai;
+
+    // Decide top-speed pace based on difficulty (set per car at start).
+    const targetSpeed = this.topSpeed * ai.pace * this.accel;
+
+    // Predict a corner ahead: pick a look-ahead point and compute a "safe" speed
+    // based on the curvature. AI is allowed to corner slightly above safe
+    // (with a grip penalty) to feel fast.
+    const lookAhead = 70 + clamp(this.vx * 0.4, 0, 80);
+    const hereTan = trackTangentAt(this.s);
+    const aheadPt = trackAt(this.s + lookAhead);
+    const aheadTan = trackTangentAt(this.s + lookAhead);
+    const dn = wrapAngle(Math.atan2(aheadTan[1], aheadTan[0]) - Math.atan2(hereTan[1], hereTan[0]));
+    const sharpness = Math.abs(dn);
+    // Heuristic safe speed: faster on straights, slower on sharp corners
+    const safe = 60 / (1 + sharpness * 6); // m/s
+    const desiredSpeed = Math.min(targetSpeed, safe * 1.1);
+
+    // Throttle logic
+    let throttle = 0, brake = 0;
+    if (this.vx < desiredSpeed - 0.5) throttle = 1;
+    else if (this.vx > desiredSpeed + 1.5) brake = 1;
+
+    // Grid discipline / traffic: if a car is directly ahead in the same lane,
+    // match ITS speed (not the speed of the slowest car behind us). The
+    // previous implementation used any nearby car as a "leader" reference,
+    // which made AI brake to match a stopped car behind them.
+    let leader = null; // closest car directly ahead in the same lane
+    {
+      const cs2 = Math.cos(this.angle), sn2 = Math.sin(this.angle);
+      let bestFx = Infinity;
+      for (const other of Cars.list) {
+        if (other === this) continue;
+        if (other.inPit || this.inPit) continue;
+        const dx = other.x - this.x, dy = other.y - this.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > 50 * 50) continue;
+        const fx =  dx * cs2 + dy * sn2;
+        const fy = -dx * sn2 + dy * cs2;
+        if (fx > 1 && fx < 40 && Math.abs(fy) < 12) {
+          if (fx < bestFx) { bestFx = fx; leader = other; }
+        }
+      }
+    }
+    if (leader) {
+      const targetSpeed = leader.vx - 0.5;
+      if (this.vx > targetSpeed) {
+        const closing = this.vx - targetSpeed;
+        brake = clamp(brake + closing * 0.05, 0, 0.8);
+        throttle = 0;
+      } else if (this.vx < targetSpeed - 1) {
+        throttle = Math.min(throttle, 0.4);
+      }
+    }
+
+    // Random mistakes: a low chance per tick to enter a "wide" state where
+    // target point shifts outward, mimicking a missed apex.
+    if (ai.mistakeT > 0) {
+      ai.mistakeT -= dt;
+    } else if (rng() < CFG.AI.MISTAKE_CHANCE) {
+      ai.mistakeT = 0.5 + rng() * 0.8;
+    }
+
+    // Steering: target a point ahead on the track centerline, then bias
+    // by mistake. Compute desired world-space target, convert to car frame.
+    const targetS = this.s + lookAhead;
+    const tgt = trackAt(targetS);
+    // Lateral offset (toward the inside of the corner)
+    const tx = tgt.x - this.x, ty = tgt.y - this.y;
+    const cs = Math.cos(this.angle), sn = Math.sin(this.angle);
+    const fx =  tx * cs + ty * sn;   // forward
+    const fy = -tx * sn + ty * cs;   // left
+    let steerTarget = clamp(Math.atan2(fy, Math.max(fx, 1)) * 1.4, -CFG.CAR.MAX_STEER, CFG.CAR.MAX_STEER);
+    if (ai.mistakeT > 0) {
+      // Push wider — over-steer slightly
+      steerTarget = clamp(steerTarget * 0.4, -CFG.CAR.MAX_STEER, CFG.CAR.MAX_STEER);
+    }
+    this.steer = lerp(this.steer, steerTarget, clamp(5.0 * dt, 0, 1));
+
+    // AI also slightly respects damage: high damage → lift and head for pits
+    if (this.damage >= CFG.DAMAGE.LIMP_THRESHOLD) {
+      throttle *= 0.4;
+      if (this.vx > targetSpeed * CFG.DAMAGE.LIMP_FACTOR) brake = 0.5;
+    }
+
+    this._applyDriveForces(throttle, brake, false, dt);
+
+    // AI pit request: enter pits when damage > some threshold (random per car so
+    // not all AI pit on the same lap).
+    const pitThreshold = 35 + (this.idx * 7) % 25; // 35..60 depending on car
+    if (!this.pitRequest && !this.inPit && this.damage > pitThreshold && this.lap >= 1) {
+      this.pitRequest = true;
+    }
+    // Reset pit request if a fresh lap with low damage
+    if (this.pitRequest && this.damage < 5 && this.lap > 1) this.pitRequest = false;
+  }
+
+  /* ---- Shared drive force model ----------------------------------------- */
+  // `reverse` defaults to 0 so the AI can call with the original 4-arg form
+  // and stay in "forward drive" mode. The player passes the explicit reverse
+  // value from `applyPlayerInput`.
+  _applyDriveForces(throttle, brake, handbrake, dt, reverse = 0) {
+    const C = CFG.CAR;
+    // Forward force
+    let fwd = 0;
+    if (throttle > 0) {
+      fwd += throttle * C.ENGINE_FORCE * this.accel;
+    }
+    if (brake > 0 && !reverse) {
+      if (this.vx > 0.3) {
+        fwd -= brake * C.BRAKE_FORCE;
+      } else {
+        // Below ~1 m/s, "brake" becomes reverse
+        fwd -= brake * C.REVERSE_FORCE;
+      }
+    }
+    if (reverse > 0) {
+      // Explicit reverse (Shift+S). Applies regardless of forward speed,
+      // but the gate in applyPlayerInput limits this to vx < 3 m/s so the
+      // player has to slow down first — can't brake-and-reverse at 200 km/h.
+      fwd -= reverse * C.REVERSE_FORCE;
+    }
+    // Drag + rolling
+    const drag = -C.DRAG * this.vx - C.ROLLING * sign(this.vx);
+    fwd += drag * C.MASS * 0.1; // scaled
+    // Cap at top speed (with damage penalty)
+    const maxV = this.topSpeed * this.accel;
+    if (this.vx > maxV) fwd -= (this.vx - maxV) * 6000;
+
+    // Lateral grip: lateral velocity decays exponentially. Handbrake reduces grip.
+    const gripLat = handbrake ? C.GRIP_LAT * 0.4 : C.GRIP_LAT;
+    this.vy -= this.vy * Math.min(1, gripLat * dt);
+
+    // Steering changes heading. Simple bicycle model using forward velocity.
+    const speedFactor = clamp(this.vx / 5, 0, 1);
+    const yawRate = (this.vx / (C.LENGTH * 0.6)) * Math.tan(this.steer) * speedFactor;
+    this.angle += yawRate * dt;
+    // Lateral force from steering (a tiny bit, mostly cosmetic)
+    this.vy += -Math.sin(this.steer) * this.vx * 0.04 * dt * 60;
+
+    // ABS: if braking hard and vx dropping fast, release brake briefly
+    let effectiveBrake = brake;
+    if (state.settings.abs && brake > 0 && this.vx > 5 && !reverse) {
+      const decelApprox = C.BRAKE_FORCE / C.MASS;
+      // If we'd decelerate "too hard", modulate
+      if (decelApprox > 14) effectiveBrake *= 0.7;
+    }
+
+    // TC: limit throttle-induced wheel slip. We approximate slip as |vy| * speed.
+    let effectiveThrottle = throttle;
+    if (state.settings.tc && throttle > 0) {
+      const slip = Math.abs(this.vy) + Math.max(0, 5 - this.vx) * 0.1; // rough slip metric
+      if (slip > 0.5) effectiveThrottle *= 0.5;
+      if (slip > 1.2) effectiveThrottle = 0;
+    }
+
+    // Recompute forward with modulated inputs
+    let fwd2 = 0;
+    if (effectiveThrottle > 0) fwd2 += effectiveThrottle * C.ENGINE_FORCE * this.accel;
+    if (effectiveBrake > 0 && !reverse) {
+      if (this.vx > 0.3) fwd2 -= effectiveBrake * C.BRAKE_FORCE;
+      else fwd2 -= effectiveBrake * C.REVERSE_FORCE;
+    }
+    if (reverse > 0) fwd2 -= reverse * C.REVERSE_FORCE;
+    fwd2 += drag * C.MASS * 0.1;
+    if (this.vx > maxV) fwd2 -= (this.vx - maxV) * 6000;
+
+    // Integrate
+    const a = fwd2 / C.MASS;
+    this.vx += a * dt;
+    // Stop creeping when on brakes at low speed
+    if (brake > 0 && !reverse && Math.abs(this.vx) < 0.2) this.vx = 0;
+    // Top reverse speed bumped from -6 to -8 m/s (~29 km/h) for more useful
+    // backing-out-of-trouble speed.
+    this.vx = Math.max(-8, Math.min(maxV + 2, this.vx));
+
+    // Move in world
+    const cs = Math.cos(this.angle), sn = Math.sin(this.angle);
+    const wx = this.vx * cs - this.vy * sn;
+    const wy = this.vx * sn + this.vy * cs;
+    this.x += wx * dt;
+    this.y += wy * dt;
+
+    // Visual omega: how fast the car is rotating
+    this.omega = yawRate;
+  }
+
+  /* ---- Pit logic --------------------------------------------------------- */
+  updatePit(dt) {
+    // Pit entry: only valid near the start/finish line (s near 0 of the loop)
+    // AND on the inside half of the track. This avoids teleporting the car
+    // into the wrong end of the pit polyline and prevents bogus wall damage.
+    if (this.pitRequest && !this.inPit) {
+      const onMainLine = nearestOnTrack(this.x, this.y);
+      // On the start straight approaching the line. We allow entry in a small
+      // s-window before the line, and right after crossing it.
+      const s = onMainLine.s;
+      const onStartStraight = (s < 80) || (s > TRACK.totalLen - 80);
+      // Inside the track (already inPit protects against off-track) — only need
+      // lateral confirmation: pit lane is on the inside (negative-y of the start
+      // straight). The track is symmetric so we just check that we're not on
+      // the outer edge.
+      if (onStartStraight && onMainLine.d < CFG.TRACK_WIDTH * 0.45) {
+        // Snap the car's position onto the start of the pit polyline so the
+        // first pit-frame begins in a valid place.
+        const entry = TRACK.pitPath[0];
+        this.x = entry[0];
+        this.y = entry[1];
+        this.angle = Math.atan2(
+          TRACK.pitPath[1][1] - entry[1],
+          TRACK.pitPath[1][0] - entry[0]
+        );
+        this.vx = Math.min(this.vx, CFG.PIT_LIMIT_KMH / 3.6);
+        this.inPit = true;
+        this.pitT = 0;
+        this.pitStopTimer = 0;
+        this.pitPhase = 'drive';
+        this.pitDetourT = 0;
+        this.pitRequest = false; // consumed
+      } else if (onStartStraight) {
+        // Player requested pit but is on the outside — keep the request live so
+        // it triggers when they swing to the inside.
+        // (No-op.)
+      }
+    }
+
+    if (this.inPit) {
+      // Drive the car through the pit lane as a state machine over 4 phases:
+      //   'drive'   — following the pit polyline (entry curve, drive lane, exit curve)
+      //   'toBox'   — pulling sideways off the drive lane to the assigned pit box
+      //   'atBox'   — stopped at the box for repair (pitStopTimer counts the time)
+      //   'fromBox' — pulling back into the drive lane after repair
+      //
+      // The polyline is the centerline of the *drive lane only*; the boxes are
+      // painted to the SIDE of that lane and reached via a short perpendicular
+      // detour. This gives the lane a clear, drivable corridor and the boxes
+      // a row of perpendicular parking spots — like a real F1 pit.
+      const path = TRACK.pitPath;
+      const dists = [];
+      for (let i = 0; i < path.length - 1; i++) {
+        const dx = path[i+1][0] - path[i][0];
+        const dy = path[i+1][1] - path[i][1];
+        dists.push(Math.hypot(dx, dy));
+      }
+      const totalPitLen = dists.reduce((a, b) => a + b, 0);
+      const pitLimit = CFG.PIT_LIMIT_KMH / 3.6; // m/s
+      const box = TRACK.pitBoxes[this.idx];
+      const driveY = TRACK.pitDriveY;
+      // Geometry of the detour: the box sits at (box.x, box.y). The car
+      // approaches the box from the drive lane (y = driveY), and leaves the
+      // box back to the drive lane a few metres past the box so it has
+      // clearance to merge back into traffic without re-entering the box row.
+      const boxApproachStartX = box.x;       // drive-lane X we start the detour from
+      const boxApproachStartY = driveY;      // drive-lane Y
+      const boxExitX          = box.x + 6;   // drive-lane X to resume on after the box
+      const boxExitY          = driveY;      // drive-lane Y
+      const DETOUR_SPEED = pitLimit * 0.4;    // slow crawl into / out of the box
+
+      if (this.pitPhase === 'drive') {
+        // Speed cap depends on where we are in the polyline (entry/exit are
+        // tighter curves so we crawl; the long drive-lane segment gets full
+        // pit limit).
+        let speedCap = pitLimit;
+        if (this.pitT < 0.18) speedCap = pitLimit * 0.6;     // entering
+        else if (this.pitT > 0.85) speedCap = pitLimit * 0.6; // exiting
+        this.pitSpeeding = this.vx > speedCap + 0.5;
+        if (this.vx > speedCap) this.vx = Math.max(speedCap, this.vx - 6 * dt);
+
+        // Move along pit polyline
+        let remaining = this.vx * dt;
+        while (remaining > 0 && this.pitT < 1) {
+          // Find current segment
+          let acc = 0;
+          let segIdx = 0;
+          for (let i = 0; i < dists.length; i++) {
+            if (this.pitT * totalPitLen < acc + dists[i]) { segIdx = i; break; }
+            acc += dists[i];
+          }
+          const localT = (this.pitT * totalPitLen - acc) / dists[segIdx];
+          const segRemaining = (1 - localT) * dists[segIdx];
+          if (remaining < segRemaining) {
+            this.pitT += remaining / totalPitLen;
+            remaining = 0;
+          } else {
+            remaining -= segRemaining;
+            this.pitT = (acc + dists[segIdx]) / totalPitLen;
+          }
+          // Update pose to current segment
+          acc = 0;
+          for (let i = 0; i < dists.length; i++) {
+            if (this.pitT * totalPitLen <= acc + dists[i]) {
+              const lt = (this.pitT * totalPitLen - acc) / dists[i];
+              const a = path[i], b = path[i+1];
+              this.x = lerp(a[0], b[0], lt);
+              this.y = lerp(a[1], b[1], lt);
+              this.angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
+              break;
+            }
+            acc += dists[i];
+          }
+        }
+
+        // Check whether we've reached the box's X on the drive lane. The
+        // box X must fall within the drive lane X range (the long flat
+        // segment of the polyline) and the car must be on (or very near)
+        // the drive lane centerline.
+        if (this.pitT > 0.20 && this.pitT < 0.85 &&
+            this.x >= box.x - 4 && this.x <= box.x + 4 &&
+            Math.abs(this.y - driveY) < 6) {
+          this.pitPhase = 'toBox';
+          this.pitDetourT = 0;
+          this.pitDriveResumeX = boxExitX;
+        }
+      } else if (this.pitPhase === 'toBox') {
+        // Linear crawl from the drive lane centerline out to the box.
+        const startX = boxApproachStartX;
+        const startY = boxApproachStartY;
+        const endX   = box.x;
+        const endY   = box.y;
+        const detLen = Math.max(1, Math.hypot(endX - startX, endY - startY));
+        const move = Math.min(this.vx, DETOUR_SPEED);
+        this.pitDetourT += (move * dt) / detLen;
+        if (this.pitDetourT >= 1) {
+          this.pitDetourT = 1;
+          this.x = endX; this.y = endY;
+          this.angle = Math.PI / 2; // facing the box (perpendicular to drive lane)
+          this.vx = 0;
+          this.pitPhase = 'atBox';
+          this.pitStopTimer = 0.0001;
+          // Roll an independent random repair time for THIS car. Each car
+          // gets its own uniform sample in [PIT_STOP_MIN_S, PIT_STOP_MAX_S]
+          // so cars pitting simultaneously leave at different times within
+          // the window. Clamp guards against a bad config where MIN > MAX.
+          const lo = Math.min(CFG.PIT_STOP_MIN_S, CFG.PIT_STOP_MAX_S);
+          const hi = Math.max(CFG.PIT_STOP_MIN_S, CFG.PIT_STOP_MAX_S);
+          this.pitStopDuration = lo + (hi - lo) * rng();
+        } else {
+          this.x = lerp(startX, endX, this.pitDetourT);
+          this.y = lerp(startY, endY, this.pitDetourT);
+          this.angle = Math.atan2(endY - startY, endX - startX);
+        }
+        this.pitSpeeding = false;
+      } else if (this.pitPhase === 'atBox') {
+        // Stopped at the box. The repair time is the per-car
+        // `pitStopDuration`, rolled uniformly in
+        // [CFG.PIT_STOP_MIN_S, CFG.PIT_STOP_MAX_S] (defaults 2.0–6.0s)
+        // on the toBox→atBox transition. Different cars get different
+        // rollouts, so simultaneous pit stops release at different times.
+        this.vx = 0;
+        this.pitStopTimer += dt;
+        this.pitSpeeding = false;
+        if (this.pitStopTimer > this.pitStopDuration) {
+          // Repair complete, begin the pull-out.
+          this.damage = 0;
+          this.limp = false;
+          this.accel = 1.0;
+          this.pitStopTimer = 0;
+          this.pitPhase = 'fromBox';
+          this.pitDetourT = 0;
+          // Kick the car forward so the fromBox pull-out has nonzero
+          // speed (vx is clamped to 0 while atBox; the very first frame of
+          // fromBox would otherwise compute move = min(vx, DETOUR_SPEED) = 0
+          // and never advance).
+          this.vx = DETOUR_SPEED;
+        }
+      } else if (this.pitPhase === 'fromBox') {
+        // Linear crawl from the box back to the drive lane a few metres
+        // past the box, then resume polyline-following at the matching
+        // pitT so the car continues east along the drive lane.
+        const startX = box.x;
+        const startY = box.y;
+        const endX   = boxExitX;
+        const endY   = boxExitY;
+        const detLen = Math.max(1, Math.hypot(endX - startX, endY - startY));
+        const move = Math.min(this.vx, DETOUR_SPEED);
+        this.pitDetourT += (move * dt) / detLen;
+        if (this.pitDetourT >= 1) {
+          this.pitDetourT = 1;
+          this.x = endX; this.y = endY;
+          this.angle = 0; // facing east on the drive lane
+          this.vx = Math.max(this.vx, DETOUR_SPEED);
+          this.pitPhase = 'drive';
+          this.pitRequest = false;
+          // Re-anchor pitT to the polyline point nearest (endX, endY) so
+          // the rest of the drive-phase loop continues smoothly east.
+          let bestIdx = 0, bestT = 0, bestD2 = Infinity;
+          let acc = 0;
+          for (let i = 0; i < dists.length; i++) {
+            for (let s = 0; s <= 1; s += 0.05) {
+              const px = lerp(path[i][0], path[i+1][0], s);
+              const py = lerp(path[i][1], path[i+1][1], s);
+              const d2 = (px - endX) * (px - endX) + (py - endY) * (py - endY);
+              if (d2 < bestD2) {
+                bestD2 = d2;
+                bestIdx = i;
+                bestT = s;
+                this.pitT = (acc + dists[i] * s) / totalPitLen;
+              }
+            }
+            acc += dists[i];
+          }
+        } else {
+          this.x = lerp(startX, endX, this.pitDetourT);
+          this.y = lerp(startY, endY, this.pitDetourT);
+          this.angle = Math.atan2(endY - startY, endX - startX);
+        }
+        this.pitSpeeding = false;
+      }
+
+      // Exit: when we reach the end of the polyline, rejoin
+      if (this.pitPhase === 'drive' && this.pitT >= 1) {
+        this.inPit = false;
+        this.pitT = 0;
+        // Re-set s near start/finish
+        this.s = 0.02 * TRACK.totalLen;
+        const p = trackAt(this.s);
+        this.x = p.x; this.y = p.y;
+        this.angle = Math.atan2(TRACK.tans[0][1], TRACK.tans[0][0]);
+        this.vx = Math.max(this.vx, 10); // give a bit of rejoining speed
+      }
+    }
+  }
+
+  /* ---- World bounds + lap tracking ------------------------------------- */
+  updateProgress(dt) {
+    // Update arc-length s from world position. Project onto track.
+    const near = nearestOnTrack(this.x, this.y);
+    // Only update s from track projection when on (or near) the main line,
+    // not while in the pit path.
+    if (!this.inPit) {
+      this.s = near.s;
+    }
+
+    // Lap detection: s wrapped around from near totalLen to 0 = lap++.
+    // We use a stricter check: only count a lap if (a) we are not in the pit
+    // lane and (b) the previous s was "near the line" and the new s is "near
+    // the start of the lap" — i.e., the car actually crossed the start/finish
+    // line. This prevents bogus lap counts from spurious s-projection jumps
+    // (e.g. when the car is briefly on the wrong side of a track segment).
+    const totalLen = TRACK.totalLen;
+    const justCrossed = this.s < 30 && this.lastS > totalLen - 80;
+    if (!this.inPit && justCrossed) {
+      this.lap++;
+      const now = performance.now() / 1000;
+      const lapTime = now - this.lapStartTime;
+      if (lapTime < this.bestLap && this.lap > 1) this.bestLap = lapTime;
+      this.lapStartTime = now;
+    } else if (this.s > this.lastS + totalLen * 0.5) {
+      // Wrapped backward (shouldn't happen, but guard against crazy values)
+      this.lap = Math.max(1, this.lap - 1);
+    }
+    this.lastS = this.s;
+
+    // Damage effects on top speed
+    if (this.damage >= CFG.DAMAGE.LIMP_THRESHOLD) {
+      this.limp = true;
+    }
+    let speedMul = 1.0;
+    if (this.damage > 50) speedMul -= (this.damage - 50) * CFG.DAMAGE.DAMAGE_SPEED_PENALTY;
+    if (this.limp) speedMul *= CFG.DAMAGE.LIMP_FACTOR;
+    this.accel = clamp(speedMul, 0.4, 1.0);
+  }
+
+  /* ---- Damage application ----------------------------------------------- */
+  applyImpact(intensityKmh, isWall) {
+    const TH = CFG.DAMAGE.CRASH_SPEED_THRESHOLD;
+    if (intensityKmh < TH) return;
+    const k = isWall ? CFG.DAMAGE.WALL_COEFF : CFG.DAMAGE.CAR_COEFF;
+    const dmg = (intensityKmh - TH) * k;
+    this.damage = clamp(this.damage + dmg, 0, 100);
+  }
+}
+
+/* =============================================================================
+   RACE — state machine, lap counting, finishing
+   ============================================================================= */
+const Race = (() => {
+  let state = "menu"; // menu | lights | racing | paused | finished
+  let lightsT = 0;    // seconds since lights armed
+  let lightsOn = [false, false, false, false, false];
+  let startedAt = 0;
+  let finishing = false;
+  let finishOrder = [];
+
+  function start(difficulty) {
+    state = "lights";
+    lightsT = 0;
+    lightsOn = [true, true, true, true, true];
+    startedAt = 0;
+    finishOrder = [];
+    finishing = false;
+    Cars.list.forEach(c => {
+      c.lapStartTime = 0;
+      c.totalTime = 0;
+      c.bestLap = Infinity;
+    });
+    // Apply difficulty
+    applyDifficulty(difficulty);
+  }
+  function canDrive() { return state === "racing"; }
+  function isPaused() { return state === "paused"; }
+  function pause() { if (state === "racing" || state === "lights") state = "paused"; }
+  function resume() { if (state === "paused") state = state === "paused" ? "racing" : state; if (state === "paused") state = "racing"; }
+  function getState() { return state; }
+
+  function update(dt) {
+    if (state === "lights") {
+      lightsT += dt;
+      // All on for LIGHTS.ON_AT_START, then extinguish one by one
+      let extinguishIdx = -1;
+      if (lightsT > CFG.LIGHTS.ON_AT_START) {
+        const tAfter = lightsT - CFG.LIGHTS.ON_AT_START;
+        extinguishIdx = Math.floor(tAfter / CFG.LIGHTS.STEP);
+      }
+      // Update light visuals
+      for (let i = 0; i < 5; i++) {
+        lightsOn[i] = extinguishIdx < i; // lights 0..extinguishIdx are OUT
+      }
+      // Audio cues on the moment each light goes out
+      if (lightsOn[0] && !prevLightsOn[0]) Audio.playLightsStep(0);
+      if (lightsOn[1] && !prevLightsOn[1]) Audio.playLightsStep(1);
+      if (lightsOn[2] && !prevLightsOn[2]) Audio.playLightsStep(2);
+      if (lightsOn[3] && !prevLightsOn[3]) Audio.playLightsStep(3);
+      if (lightsOn[4] && !prevLightsOn[4]) Audio.playLightsStep(4);
+
+      // When all 5 have been extinguished, GO!
+      if (extinguishIdx >= 5 && !finishing) {
+        finishing = true;
+        // Small delay before releasing the cars so the GO tone lands cleanly
+        setTimeout(() => {
+          if (state === "lights") {
+            state = "racing";
+            startedAt = performance.now() / 1000;
+            Cars.list.forEach(c => { c.lapStartTime = startedAt; });
+            Audio.playGo();
+            Audio.startEngine();
+          }
+        }, 380);
+      }
+      prevLightsOn = lightsOn.slice();
+      // Expose extinguished count to the HUD lights renderer.
+      Race._extinguished = extinguishIdx;
+    }
+
+    if (state === "racing") {
+      // Check finish: when someone has completed TOTAL_LAPS, freeze the order
+      // as their finish times, then wait for everyone (or a timeout) to finish
+      const leader = Cars.list.reduce((a, b) => (b.lap > a.lap || (b.lap === a.lap && b.s > a.s)) ? b : a);
+      if (!finishing) {
+        for (const c of Cars.list) {
+          if (!c.finished && c.lap > state.totalLaps) {
+            c.finished = true;
+            c.finishTime = performance.now() / 1000 - startedAt;
+            finishOrder.push(c);
+            Audio.playCheer();
+          }
+        }
+        if (finishOrder.length >= Cars.list.length || (leader.lap > state.totalLaps + 1)) {
+          state = "finished";
+          Audio.stopEngine();
+          UI.showResults(finishOrder);
+        }
+      }
+    }
+  }
+
+  let prevLightsOn = [false, false, false, false, false];
+  // Race._extinguished is set by Race.update; first tick will populate it.
+
+  return { start, canDrive, isPaused, pause, resume, getState, update };
+})();
+
+/* =============================================================================
+   DIFFICULTY
+   ============================================================================= */
+function applyDifficulty(diff) {
+  // Per-car pace multipliers
+  const presets = {
+    rookie:   { pace: 0.82, aiSpread: 0.04, mistakeScale: 1.5, damageGentle: 0.7 },
+    amateur:  { pace: 0.95, aiSpread: 0.06, mistakeScale: 1.0, damageGentle: 0.85 },
+    pro:      { pace: 1.02, aiSpread: 0.08, mistakeScale: 0.7, damageGentle: 1.0 },
+  };
+  const p = presets[diff] || presets.amateur;
+  for (const c of Cars.list) {
+    if (c.isPlayer) continue;
+    if (!c.ai) continue;
+    // Each AI gets a small pace offset
+    c.ai.pace = p.pace + (rng() * 2 - 1) * p.aiSpread;
+  }
+  state.difficulty = diff;
+  state.difficultyPreset = p;
+}
+
+/* =============================================================================
+   CARS (instantiated after track is built)
+   ============================================================================= */
+const Cars = (() => {
+  const list = [];
+  // Place a car at a given arc-length s and lateral offset (in m, +ve to the
+  // left of the centerline). Used for both the initial spawn and restart.
+  function placeCarAtS(c, s, lateral) {
+    const p = trackAt(s);
+    const t = trackTangentAt(s);
+    const lpx = -t[1], lpy = t[0]; // left-perp
+    c.x = p.x + lpx * lateral;
+    c.y = p.y + lpy * lateral;
+    c.angle = Math.atan2(t[1], t[0]);
+    c.s = s;
+    c.lastS = s; // critical: prevent bogus wrap-forward on first frame
+  }
+  function placeGrid() {
+    // Grid is 2 rows x 3 columns. Front row at s = frontS, back row at frontS - rowSpacing.
+    // We choose frontS so the grid sits firmly on the start straight (no wrap).
+    // Columns are spaced 32m apart (wide enough that the player has clear track
+    // immediately to one side) and rows are 45m apart.
+    const frontS = 200;             // 200m past the start line in arc-length
+    const rowSpacing = 50;          // 50m between rows
+    const colSpacing = 40;          // 40m between columns (more than car length, no immediate contact)
+    // Grid order: pole (player) at front-left, then across the front row, then back row
+    const grid = [
+      { col: 0, row: 0, isPlayer: true  },
+      { col: 1, row: 0, isPlayer: false },
+      { col: 2, row: 0, isPlayer: false },
+      { col: 0, row: 1, isPlayer: false },
+      { col: 1, row: 1, isPlayer: false },
+      { col: 2, row: 1, isPlayer: false },
+    ];
+    for (let i = 0; i < grid.length; i++) {
+      const g = grid[i];
+      const s = frontS - g.row * rowSpacing;
+      const lateral = (g.col - 1) * colSpacing; // -col, 0, +col
+      const c = list[i];
+      if (!c) continue;
+      placeCarAtS(c, s, lateral);
+    }
+  }
+  function spawn() {
+    // 2-3-1 grid for the 6 cars. Use placeholder positions; placeGrid() will
+    // compute proper arc-length-based positions.
+    const startS = 200;
+    const here = trackAt(startS);
+    const tan = trackTangentAt(startS);
+    const lpx = -tan[1], lpy = tan[0];
+    for (let i = 0; i < 6; i++) {
+      const c = new Car({
+        idx: i,
+        name: CFG.DRIVER_NAMES[i],
+        color: CFG.COLORS[i],
+        isPlayer: i === 0,
+        x: here.x, y: here.y, angle: Math.atan2(tan[1], tan[0]), s: startS
+      });
+      list.push(c);
+    }
+    placeGrid();
+  }
+  return { list, spawn, placeGrid, placeCarAtS };
+})();
+
+/* =============================================================================
+   RENDER
+   ============================================================================= */
+const Render = (() => {
+  const stage = document.getElementById("stage");
+  const ctx = stage.getContext("2d");
+  const mini = document.getElementById("minimap");
+  const mctx = mini.getContext("2d");
+
+  // World -> screen: we keep the player roughly centered.
+  const cam = { x: 0, y: 0, zoom: 1 };
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    stage.width  = Math.floor(window.innerWidth  * dpr);
+    stage.height = Math.floor(window.innerHeight * dpr);
+    stage.style.width  = window.innerWidth  + "px";
+    stage.style.height = window.innerHeight + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Fit the whole track initially, then zoom in once racing starts
+    fitTrack();
+  }
+  function fitTrack() {
+    // Compute bounding box of track
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of TRACK.points) {
+      if (p[0] < minX) minX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] > maxY) maxY = p[1];
+    }
+    const w = maxX - minX + 400, h = maxY - minY + 400;
+    const sw = window.innerWidth, sh = window.innerHeight;
+    cam.zoom = Math.min(sw / w, sh / h) * 1.4; // a bit of margin
+    cam.x = (minX + maxX) / 2;
+    cam.y = (minY + maxY) / 2;
+  }
+  function follow(player) {
+    cam.x = lerp(cam.x, player.x, 0.18);
+    cam.y = lerp(cam.y, player.y, 0.18);
+  }
+
+  function worldToScreen(x, y) {
+    const sw = window.innerWidth, sh = window.innerHeight;
+    return {
+      x: (x - cam.x) * cam.zoom + sw / 2,
+      y: (y - cam.y) * cam.zoom + sh / 2,
+    };
+  }
+
+  function draw() {
+    const sw = window.innerWidth, sh = window.innerHeight;
+    // Background
+    ctx.fillStyle = "#0a0d12";
+    ctx.fillRect(0, 0, sw, sh);
+
+    // Grass (subtle radial gradient over background)
+    const grad = ctx.createRadialGradient(sw/2, sh/2, 50, sw/2, sh/2, Math.max(sw, sh));
+    grad.addColorStop(0, "#14202b");
+    grad.addColorStop(1, "#0a0d12");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, sw, sh);
+
+    // Draw track
+    drawTrack(ctx);
+
+    // Draw racing line (faint)
+    drawRacingLine(ctx);
+
+    // Draw pit lane
+    drawPitLane(ctx);
+
+    // Draw start/finish line
+    drawStartLine(ctx);
+
+    // Draw cars
+    const player = Cars.list[0];
+    for (const c of Cars.list) drawCar(ctx, c, c === player);
+
+    // Camera follows player
+    follow(player);
+
+    // Minimap
+    drawMinimap();
+  }
+
+  function drawTrack(c) {
+    c.lineCap = "round";
+    c.lineJoin = "round";
+
+    // Outer grass/rumble strip (slightly larger band)
+    c.strokeStyle = "#2a3a1c";
+    c.lineWidth = (CFG.TRACK_WIDTH + 30) * cam.zoom;
+    c.beginPath();
+    const pts = TRACK.points;
+    const p0 = worldToScreen(pts[0][0], pts[0][1]);
+    c.moveTo(p0.x, p0.y);
+    for (let i = 1; i < pts.length; i++) {
+      const p = worldToScreen(pts[i][0], pts[i][1]);
+      c.lineTo(p.x, p.y);
+    }
+    c.closePath();
+    c.stroke();
+
+    // Track surface (asphalt)
+    c.strokeStyle = "#3a3f47";
+    c.lineWidth = CFG.TRACK_WIDTH * cam.zoom;
+    c.stroke();
+
+    // Centerline (dashed white) — racing guide
+    c.strokeStyle = "rgba(255,255,255,0.35)";
+    c.lineWidth = 2 * cam.zoom;
+    c.setLineDash([12 * cam.zoom, 18 * cam.zoom]);
+    c.beginPath();
+    c.moveTo(p0.x, p0.y);
+    for (let i = 1; i < pts.length; i++) {
+      const p = worldToScreen(pts[i][0], pts[i][1]);
+      c.lineTo(p.x, p.y);
+    }
+    c.closePath();
+    c.stroke();
+    c.setLineDash([]);
+
+    // Kerbs (alternating red/white blocks on the inside of a few key corners)
+    drawKerbs(c);
+  }
+
+  function drawKerbs(c) {
+    // Place kerbs at certain track points; small alternating red/white segments
+    const spots = [0.10, 0.22, 0.36, 0.50, 0.62, 0.78]; // fractions of totalLen
+    const segLen = 22; // m
+    for (const f of spots) {
+      const s0 = f * TRACK.totalLen;
+      const s1 = s0 + segLen;
+      const N = 12;
+      for (let i = 0; i < N; i++) {
+        const t0 = s0 + (segLen * i) / N;
+        const t1 = s0 + (segLen * (i + 1)) / N;
+        const a = trackAt(t0), b = trackAt(t1);
+        const tan = trackTangentAt((t0 + t1) / 2);
+        // Perpendicular (left)
+        const px = -tan[1], py = tan[0];
+        // Inner edge: at half track width
+        const w = CFG.TRACK_WIDTH * 0.45;
+        const x1 = a.x + px * w, y1 = a.y + py * w;
+        const x2 = b.x + px * w, y2 = b.y + py * w;
+        const x3 = b.x + px * (w + 12), y3 = b.y + py * (w + 12);
+        const x4 = a.x + px * (w + 12), y4 = a.y + py * (w + 12);
+        const sA = worldToScreen(x1, y1);
+        const sB = worldToScreen(x2, y2);
+        const sC = worldToScreen(x3, y3);
+        const sD = worldToScreen(x4, y4);
+        c.fillStyle = (i % 2 === 0) ? "#ef1a1a" : "#ffffff";
+        c.beginPath();
+        c.moveTo(sA.x, sA.y);
+        c.lineTo(sB.x, sB.y);
+        c.lineTo(sC.x, sC.y);
+        c.lineTo(sD.x, sD.y);
+        c.closePath();
+        c.fill();
+      }
+    }
+  }
+
+  function drawRacingLine(c) {
+    c.strokeStyle = "rgba(80,200,255,0.18)";
+    c.lineWidth = 3 * cam.zoom;
+    c.setLineDash([4 * cam.zoom, 8 * cam.zoom]);
+    c.beginPath();
+    const pts = TRACK.points;
+    const off = -CFG.TRACK_WIDTH * 0.18; // bias slightly to inside
+    const p0 = trackAt(0);
+    const t0 = trackTangentAt(0);
+    const px0 = -t0[1] * off, py0 = t0[0] * off;
+    const s0 = worldToScreen(p0.x + px0, p0.y + py0);
+    c.moveTo(s0.x, s0.y);
+    for (let i = 1; i < pts.length; i++) {
+      const s = i / (pts.length - 1) * TRACK.totalLen;
+      const p = trackAt(s);
+      const t = trackTangentAt(s);
+      const px = -t[1] * off, py = t[0] * off;
+      const ss = worldToScreen(p.x + px, p.y + py);
+      c.lineTo(ss.x, ss.y);
+    }
+    c.closePath();
+    c.stroke();
+    c.setLineDash([]);
+  }
+
+  function drawPitLane(c) {
+    const path = TRACK.pitPath;
+    // Pit lane surface
+    c.strokeStyle = "#1d2632";
+    c.lineWidth = CFG.PIT_WIDTH * cam.zoom;
+    c.lineCap = "round";
+    c.beginPath();
+    const s0 = worldToScreen(path[0][0], path[0][1]);
+    c.moveTo(s0.x, s0.y);
+    for (let i = 1; i < path.length; i++) {
+      const s = worldToScreen(path[i][0], path[i][1]);
+      c.lineTo(s.x, s.y);
+    }
+    c.stroke();
+
+    // Pit lane edge (yellow line)
+    c.strokeStyle = "rgba(245,200,40,0.85)";
+    c.lineWidth = 2 * cam.zoom;
+    c.beginPath();
+    c.moveTo(s0.x, s0.y);
+    for (let i = 1; i < path.length; i++) {
+      const s = worldToScreen(path[i][0], path[i][1]);
+      c.lineTo(s.x, s.y);
+    }
+    c.stroke();
+
+    // Pit entry / exit markers
+    c.fillStyle = "#f59e0b";
+    const e1 = worldToScreen(path[0][0], path[0][1]);
+    c.beginPath(); c.arc(e1.x, e1.y, 5 * cam.zoom, 0, TAU); c.fill();
+    const e2 = worldToScreen(path[path.length-1][0], path[path.length-1][1]);
+    c.beginPath(); c.arc(e2.x, e2.y, 5 * cam.zoom, 0, TAU); c.fill();
+
+    // Pit boxes: one per car, painted in the car's color. The car color is
+    // looked up at draw time from Cars.list so the box stays in sync with
+    // any future reskin. The box is offset to the SIDE of the drive lane
+    // (further inside, toward the box-row centerline at TRACK.pitBoxY).
+    for (let i = 0; i < TRACK.pitBoxes.length; i++) {
+      const box = TRACK.pitBoxes[i];
+      const car = Cars.list[i];
+      const s = worldToScreen(box.x, box.y);
+      const w = CFG.PIT_BOX_WIDTH * cam.zoom;
+      const l = CFG.PIT_BOX_LENGTH * cam.zoom;
+      // Box body: the car's color, slightly desaturated.
+      c.fillStyle = car ? car.color : "rgba(255,255,255,0.18)";
+      c.fillRect(s.x - l/2, s.y - w/2, l, w);
+      // Box outline: a thin white border so adjacent boxes read as separate
+      // even when their colors are similar.
+      c.strokeStyle = "rgba(255,255,255,0.55)";
+      c.lineWidth = 1.5 * cam.zoom;
+      c.strokeRect(s.x - l/2, s.y - w/2, l, w);
+      // Number on the box (1..6) so the player can tell boxes apart at a glance.
+      c.fillStyle = "rgba(0,0,0,0.75)";
+      c.font = `${Math.round(10 * cam.zoom)}px ui-sans-serif, system-ui, sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText(String(i + 1), s.x, s.y);
+    }
+  }
+
+  function drawStartLine(c) {
+    // Place perpendicular to the tangent at s=0
+    const p = trackAt(0);
+    const t = trackTangentAt(0);
+    const px = -t[1], py = t[0]; // left-perp
+    const half = CFG.TRACK_WIDTH * 0.45;
+    const x1 = p.x - t[0] * 3, y1 = p.y - t[1] * 3;
+    const x2 = p.x + t[0] * 3, y2 = p.y + t[1] * 3;
+    const N = 8;
+    for (let i = 0; i < N; i++) {
+      const t0 = i / N, t1 = (i + 1) / N;
+      const ax = lerp(x1, x2, t0) + px * half, ay = lerp(y1, y2, t0) + py * half;
+      const bx = lerp(x1, x2, t1) + px * half, by = lerp(y1, y2, t1) + py * half;
+      const ax2 = lerp(x1, x2, t0) - px * half, ay2 = lerp(y1, y2, t0) - py * half;
+      const bx2 = lerp(x1, x2, t1) - px * half, by2 = lerp(y1, y2, t1) - py * half;
+      const sA = worldToScreen(ax, ay);
+      const sB = worldToScreen(bx, by);
+      const sA2 = worldToScreen(ax2, ay2);
+      const sB2 = worldToScreen(bx2, by2);
+      c.fillStyle = (i % 2 === 0) ? "#ffffff" : "#1a1a1a";
+      c.beginPath(); c.moveTo(sA.x, sA.y); c.lineTo(sB.x, sB.y); c.lineTo(sB2.x, sB2.y); c.lineTo(sA2.x, sA2.y); c.closePath(); c.fill();
+    }
+  }
+
+  function drawCar(c, car, isPlayer) {
+    const s = worldToScreen(car.x, car.y);
+    c.save();
+    c.translate(s.x, s.y);
+    c.rotate(car.angle);
+    const w = CFG.CAR.WIDTH * cam.zoom;
+    const l = CFG.CAR.LENGTH * cam.zoom;
+
+    // Shadow
+    c.fillStyle = "rgba(0,0,0,0.35)";
+    c.fillRect(-l/2 + 2, -w/2 + 2, l, w);
+
+    // Body
+    c.fillStyle = car.color;
+    c.fillRect(-l/2, -w/2, l, w);
+
+    // Nose (lighter strip)
+    c.fillStyle = "rgba(255,255,255,0.25)";
+    c.fillRect(l/2 - 8 * cam.zoom, -w/2, 8 * cam.zoom, w);
+
+    // Cockpit
+    c.fillStyle = "rgba(0,0,0,0.55)";
+    c.fillRect(-2 * cam.zoom, -w/2 + 2, l * 0.35, w - 4);
+
+    // Helmet
+    c.fillStyle = "#f0f0f0";
+    c.beginPath();
+    c.arc(2 * cam.zoom, 0, w * 0.22, 0, TAU);
+    c.fill();
+
+    // Front wing
+    c.fillStyle = "rgba(0,0,0,0.7)";
+    c.fillRect(l/2 - 2, -w/2 - 2, 4, w + 4);
+    // Rear wing
+    c.fillRect(-l/2 - 2, -w/2 - 4, 4, w + 8);
+
+    // Reverse / brake light on the back of the player car
+    if (isPlayer && (state.input.reverse || state.input.brake)) {
+      const alpha = state.input.reverse ? 0.95 : 0.6;
+      c.fillStyle = `rgba(255,40,40,${alpha})`;
+      // Two small red bars flanking the rear wing
+      c.fillRect(-l/2 - 3, -w/2 + 4, 2, 5);
+      c.fillRect(-l/2 - 3,  w/2 - 9, 2, 5);
+      // Glow
+      const grad = c.createRadialGradient(-l/2 - 1, 0, 0, -l/2 - 1, 0, 10);
+      grad.addColorStop(0, `rgba(255,60,60,${alpha * 0.5})`);
+      grad.addColorStop(1, "rgba(255,60,60,0)");
+      c.fillStyle = grad;
+      c.fillRect(-l/2 - 8, -w/2, 8, w);
+    }
+
+    // Wheels
+    c.fillStyle = "#0d0d0d";
+    c.fillRect(l/2 - 9 * cam.zoom, -w/2 - 3, 6, 4);
+    c.fillRect(l/2 - 9 * cam.zoom,  w/2 - 1, 6, 4);
+    c.fillRect(-l/2 + 3 * cam.zoom, -w/2 - 3, 6, 4);
+    c.fillRect(-l/2 + 3 * cam.zoom,  w/2 - 1, 6, 4);
+
+    // Steering indicator (front wheels)
+    if (Math.abs(car.steer) > 0.02) {
+      c.save();
+      c.translate(l/2 - 6 * cam.zoom, 0);
+      c.rotate(car.steer);
+      c.fillStyle = "#222";
+      c.fillRect(-3 * cam.zoom, -w/2 - 3, 6, 4);
+      c.fillRect(-3 * cam.zoom,  w/2 - 1, 6, 4);
+      c.restore();
+    }
+
+    // Number / identifier
+    c.fillStyle = "#fff";
+    c.font = `${Math.max(8, 9 * cam.zoom)}px ui-sans-serif, system-ui, sans-serif`;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText(String(car.idx + 1), 0, 0);
+
+    c.restore();
+
+    // Damage puffs (procedural)
+    if (car.damage > 30) {
+      const intensity = (car.damage - 30) / 70;
+      c.save();
+      c.translate(s.x, s.y);
+      c.fillStyle = `rgba(60,60,60,${0.18 + intensity * 0.25})`;
+      const r = (10 + intensity * 14) * cam.zoom;
+      c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill();
+      c.restore();
+    }
+  }
+
+  function drawMinimap() {
+    const w = mini.width, h = mini.height;
+    mctx.fillStyle = "#0d1320";
+    mctx.fillRect(0, 0, w, h);
+
+    // Compute bounds
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of TRACK.points) {
+      if (p[0] < minX) minX = p[0];
+      if (p[1] < minY) minY = p[1];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] > maxY) maxY = p[1];
+    }
+    const pad = 8;
+    const sx = (x) => pad + (x - minX) / (maxX - minX) * (w - pad * 2);
+    const sy = (y) => pad + (y - minY) / (maxY - minY) * (h - pad * 2);
+
+    // Track
+    mctx.strokeStyle = "#3a3f47";
+    mctx.lineWidth = 3;
+    mctx.lineJoin = "round";
+    mctx.beginPath();
+    const p0 = TRACK.points[0];
+    mctx.moveTo(sx(p0[0]), sy(p0[1]));
+    for (let i = 1; i < TRACK.points.length; i++) {
+      mctx.lineTo(sx(TRACK.points[i][0]), sy(TRACK.points[i][1]));
+    }
+    mctx.closePath();
+    mctx.stroke();
+
+    // Pit lane
+    mctx.strokeStyle = "rgba(245,200,40,0.7)";
+    mctx.lineWidth = 1.5;
+    mctx.beginPath();
+    mctx.moveTo(sx(TRACK.pitPath[0][0]), sy(TRACK.pitPath[0][1]));
+    for (let i = 1; i < TRACK.pitPath.length; i++) {
+      mctx.lineTo(sx(TRACK.pitPath[i][0]), sy(TRACK.pitPath[i][1]));
+    }
+    mctx.stroke();
+
+    // Cars
+    for (const c of Cars.list) {
+      mctx.fillStyle = c.color;
+      mctx.beginPath();
+      mctx.arc(sx(c.x), sy(c.y), c.isPlayer ? 4 : 3, 0, TAU);
+      mctx.fill();
+      if (c.isPlayer) {
+        mctx.strokeStyle = "#fff";
+        mctx.lineWidth = 1.5;
+        mctx.stroke();
+      }
+    }
+  }
+
+  return { draw, resize, fitTrack };
+})();
+
+/* =============================================================================
+   UI WIRING
+   ============================================================================= */
+const UI = (() => {
+  const $ = (id) => document.getElementById(id);
+
+  function show(el) { el.classList.remove("hidden"); }
+  function hide(el) { el.classList.add("hidden"); }
+
+  // Settings state lives on the global `state` object below.
+  function bindMenu() {
+    // Difficulty segmented control
+    $("diff-seg").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-diff]");
+      if (!btn) return;
+      const diff = btn.dataset.diff;
+      $("diff-seg").querySelectorAll("button").forEach(b => b.classList.remove("on"));
+      btn.classList.add("on");
+      const descs = {
+        rookie:  { name: "Rookie",  desc: "Slowest AI, every assist on. Just drive." },
+        amateur: { name: "Amateur", desc: "AI ~95% of your pace, most assists on." },
+        pro:     { name: "Pro",     desc: "AI ~102% pace, tighter, still easy to drive." },
+      };
+      $("diff-name").textContent = descs[diff].name;
+      $("diff-desc").textContent = descs[diff].desc;
+      state.difficulty = diff;
+    });
+
+    // Generic segmented controls for toggles
+    document.querySelectorAll(".seg[data-toggle]").forEach(seg => {
+      seg.addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        seg.querySelectorAll("button").forEach(b => b.classList.remove("on"));
+        btn.classList.add("on");
+        const key = seg.dataset.toggle;
+        const val = btn.textContent.trim();
+        if (key === "laps") {
+          state.totalLaps = parseInt(val, 10) || CFG.TOTAL_LAPS_DEFAULT;
+          $("hud-totallaps").textContent = String(state.totalLaps);
+        } else if (key === "abs" || key === "tc" || key === "autobrake" || key === "steerassist") {
+          state.settings[key === "autobrake" ? "autobrake" : key] = (val === "On");
+        }
+      });
+    });
+
+    $("btn-start").addEventListener("click", startRace);
+    $("btn-restart").addEventListener("click", startRace);
+    $("btn-back-menu").addEventListener("click", backToMenu);
+    $("btn-resume").addEventListener("click", () => { Race.resume(); hide($("menu-pause")); });
+    $("btn-restart-from-pause").addEventListener("click", () => { hide($("menu-pause")); startRace(); });
+    $("btn-quit").addEventListener("click", () => { Race.pause(); hide($("menu-pause")); show($("menu-title")); });
+  }
+
+  function startRace() {
+    Audio.resume();
+    // Reset cars
+    Cars.list.forEach(c => {
+      c.resetTo(c.x, c.y, c.angle, c.s);
+    });
+    // Reposition to grid
+    repositionGrid();
+    applyDifficulty(state.difficulty);
+    UI.hide($("menu-title"));
+    UI.hide($("menu-results"));
+    Race.start(state.difficulty);
+    // Show lights overlay
+    $("lights").style.display = "flex";
+    $("lights-label").style.display = "block";
+    $("lights-label").textContent = "GET READY";
+  }
+
+  function repositionGrid() {
+    // Re-place cars on the grid (in case of restart). Use the same arc-length
+    // placement as the initial spawn so `lastS` matches the actual `s` value.
+    Cars.placeGrid();
+  }
+
+  function backToMenu() {
+    hide($("menu-results"));
+    show($("menu-title"));
+  }
+
+  function showResults(order) {
+    const tb = $("results-table").querySelector("tbody");
+    tb.innerHTML = "";
+    order.forEach((c, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="pos ${c.isPlayer ? "you" : ""}">${i + 1}</td>
+        <td class="${c.isPlayer ? "you" : ""}"><span class="dot" style="background:${c.color}"></span>${c.name}</td>
+        <td>${formatTime(c.finishTime)}</td>
+        <td>${c.bestLap < Infinity ? formatTime(c.bestLap) : "—"}</td>
+        <td>${c.damage >= 100 ? "DNF" : (c.isPlayer ? "Finished" : "Finished")}</td>
+      `;
+      tb.appendChild(tr);
+    });
+    // Any DNFs at the bottom
+    const dnfs = Cars.list.filter(c => !c.finished);
+    for (const c of dnfs) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="pos">—</td>
+        <td class="${c.isPlayer ? "you" : ""}"><span class="dot" style="background:${c.color}"></span>${c.name}</td>
+        <td>DNF</td>
+        <td>—</td>
+        <td>Damage: ${Math.round(c.damage)}</td>
+      `;
+      tb.appendChild(tr);
+    }
+    show($("menu-results"));
+  }
+
+  function formatTime(t) {
+    if (!isFinite(t) || t < 0) return "—";
+    const m = Math.floor(t / 60);
+    const s = t - m * 60;
+    return `${m}:${s.toFixed(2).padStart(5, "0")}`;
+  }
+
+  function tickHUD(player) {
+    // Position
+    const sorted = Cars.list.slice().sort((a, b) => {
+      if (a.lap !== b.lap) return b.lap - a.lap;
+      return b.s - a.s;
+    });
+    const pos = sorted.indexOf(player) + 1;
+    $("hud-pos").textContent = `P${pos}`;
+    // Lap
+    $("hud-lap").textContent = String(Math.min(player.lap, state.totalLaps + 1));
+    $("hud-totallaps").textContent = String(state.totalLaps);
+    // Lap time
+    const now = performance.now() / 1000;
+    const curLap = now - player.lapStartTime;
+    $("hud-laptime").textContent = formatTime(curLap);
+    if (player.bestLap < Infinity) {
+      $("hud-best").textContent = "Best: " + formatTime(player.bestLap);
+      $("hud-best").classList.remove("bad");
+    } else {
+      $("hud-best").textContent = "Best: —";
+      $("hud-best").classList.remove("bad");
+    }
+    // Speed
+    const kmh = Math.abs(player.vx) * 3.6;
+    $("hud-speed").textContent = Math.round(kmh);
+    // Damage
+    const dmg = Math.round(player.damage);
+    $("hud-damage").textContent = dmg;
+    $("hud-damage-fill").style.width = dmg + "%";
+    // Inputs
+    const input = state.input;
+    const reversing = input.reverse && player.vx < 0.5;
+    $("hud-throttle").classList.toggle("on", input.accel);
+    $("hud-brake").classList.toggle("on", input.brake && !reversing);
+    $("hud-reverse").classList.toggle("rev-on", reversing);
+    $("hud-abs").classList.toggle("assist-on", state.settings.abs);
+    $("hud-tc").classList.toggle("assist-on", state.settings.tc);
+    // Speedometer turns red and shows "R" gear in reverse
+    $("hud-speed-wrap").classList.toggle("reverse", reversing);
+    // Pit indicator
+    if (player.inPit) {
+      $("hud-pit").classList.add("show");
+      $("hud-pit").classList.toggle("speeding", player.pitSpeeding);
+      $("hud-pit").textContent = player.pitSpeeding ? "PIT LIMIT!" : "PIT LANE";
+    } else if (player.pitRequest) {
+      $("hud-pit").classList.add("show");
+      $("hud-pit").classList.remove("speeding");
+      $("hud-pit").textContent = "PIT REQUESTED";
+    } else {
+      $("hud-pit").classList.remove("show");
+    }
+    // Standings
+    const sb = $("hud-standings");
+    sb.innerHTML = "";
+    for (let i = 0; i < sorted.length; i++) {
+      const c = sorted[i];
+      const lapDelta = c.lap - player.lap;
+      const sDelta = c.s - player.s;
+      const d = lapDelta * 1000 + sDelta; // rough
+      const gap = i === 0 ? "Leader" : ((d > 0 ? "+" : "") + (d / 50).toFixed(1) + "s");
+      const row = document.createElement("div");
+      row.className = "row" + (c.isPlayer ? " self" : "");
+      row.innerHTML = `<span><span class="dot" style="background:${c.color}"></span>P${i+1} ${c.name.split(" ")[0]}</span><span class="gap">${gap}</span>`;
+      sb.appendChild(row);
+    }
+  }
+
+  return { bindMenu, showResults, hide, show, tickHUD, formatTime };
+})();
+
+/* =============================================================================
+   COLLISIONS (car-car + car-wall)
+   ============================================================================= */
+function checkCollisions(dt) {
+  const list = Cars.list;
+  // Car-car
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j];
+      if (a.inPit || b.inPit) continue; // pit lane: ignore for simplicity
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d2 = dx*dx + dy*dy;
+      // Use the geometric mean of length and width as a tighter collision
+      // radius — AABB is too pessimistic for racing where cars drive
+      // alongside each other in a 150m-wide track.
+      const minD = Math.max(CFG.CAR.WIDTH, CFG.CAR.LENGTH) * 0.5 + 1;
+      if (d2 < minD * minD && d2 > 0.01) {
+        const d = Math.sqrt(d2);
+        const overlap = (minD - d) * 0.5;
+        const nx = dx / d, ny = dy / d;
+        // Soft push apart
+        a.x -= nx * overlap; a.y -= ny * overlap;
+        b.x += nx * overlap; b.y += ny * overlap;
+        // Damage based on closing speed
+        const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+        const closing = Math.abs(dvx) + Math.abs(dvy);
+        const impactKmh = closing * 3.6 * 0.5;
+        if (impactKmh > CFG.DAMAGE.CRASH_SPEED_THRESHOLD) {
+          a.applyImpact(impactKmh, false);
+          b.applyImpact(impactKmh, false);
+          Audio.playCrash(clamp(impactKmh / 200, 0.1, 1));
+        }
+        // Damp velocities only mildly — previous 0.6x per frame at 60Hz
+        // strangled the cars into a stationary pile at the first contact.
+        a.vx *= 0.95; a.vy *= 0.95;
+        b.vx *= 0.95; b.vy *= 0.95;
+      }
+    }
+  }
+
+  // Car-wall (off-track)
+  for (const c of list) {
+    if (c.inPit) continue; // pit lane bypasses this check
+    const near = nearestOnTrack(c.x, c.y);
+    if (near.d > CFG.TRACK_WIDTH * 0.5 + 4) {
+      // Hit the wall — push back to the edge, damage, slow down
+      const nx = near.nx, ny = near.ny;
+      const overshoot = near.d - (CFG.TRACK_WIDTH * 0.5 + 4);
+      c.x -= nx * overshoot;
+      c.y -= ny * overshoot;
+      const speedKmh = Math.abs(c.vx) * 3.6;
+      // Reversing counts as a "controlled" contact — apply positional
+      // pushback and slow the car down, but no damage chip. This makes
+      // backing out of a wall scrape cheap, which is the whole point of
+      // adding a reverse gear.
+      const reversing = c.isPlayer && state.input.reverse && c.vx < 0;
+      if (speedKmh > 50 && !reversing) {
+        c.applyImpact(speedKmh, true);
+        Audio.playCrash(clamp(speedKmh / 220, 0.1, 1));
+      }
+      // Always reduce speed on contact
+      c.vx *= 0.3;
+      c.vy *= 0.3;
+    }
+  }
+}
+
+/* =============================================================================
+   GLOBAL STATE
+   ============================================================================= */
+const state = {
+  input: { accel: false, brake: false, reverse: false, left: false, right: false, handbrake: false, pit: false },
+  settings: {
+    abs: true,
+    tc: true,
+    autobrake: true,
+    steerassist: true,
+  },
+  difficulty: "rookie",
+  difficultyPreset: null,
+  totalLaps: CFG.TOTAL_LAPS_DEFAULT,
+};
+
+/* =============================================================================
+   INPUT
+   ============================================================================= */
+function bindInput() {
+  const keymap = {
+    ArrowUp: "accel", KeyW: "accel",
+    ArrowDown: "brake", KeyS: "brake",
+    ArrowLeft: "left", KeyA: "left",
+    ArrowRight: "right", KeyD: "right",
+    Space: "handbrake",
+    KeyP: "pit",
+  };
+  // Shift + one of these keys engages reverse (without conflicting with brake)
+  const shiftReverseMap = {
+    ArrowDown: true, KeyS: true, KeyR: true,
+  };
+  const down = (e) => {
+    if (e.repeat) return;
+    // Shift + (S / Down / R) -> reverse
+    if (e.shiftKey && shiftReverseMap[e.code]) {
+      state.input.reverse = true;
+      e.preventDefault();
+      return;
+    }
+    const k = keymap[e.code];
+    if (!k) return;
+    state.input[k] = true;
+    if (e.code === "KeyP" && Race.canDrive()) {
+      // Toggle pit request
+      const player = Cars.list[0];
+      if (!player.inPit) player.pitRequest = !player.pitRequest;
+    }
+    if (e.code === "Escape") {
+      if (Race.getState() === "paused") {
+        Race.resume();
+        document.getElementById("menu-pause").classList.add("hidden");
+      } else if (Race.getState() === "racing" || Race.getState() === "lights") {
+        Race.pause();
+        document.getElementById("menu-pause").classList.remove("hidden");
+      }
+    }
+    e.preventDefault();
+  };
+  const up = (e) => {
+    // Reverse is held when both Shift and (S / Down / R) are down. Clear it
+    // whenever either is released; the next keydown will re-engage it.
+    if (e.code === "ShiftLeft" || e.code === "ShiftRight" ||
+        e.code === "KeyS" || e.code === "ArrowDown" || e.code === "KeyR") {
+      state.input.reverse = false;
+    }
+    const k = keymap[e.code];
+    if (!k) return;
+    state.input[k] = false;
+    e.preventDefault();
+  };
+  window.addEventListener("keydown", down);
+  window.addEventListener("keyup", up);
+
+  // Touch buttons
+  const touchBind = (id, key) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("pointerdown", (e) => { e.preventDefault(); state.input[key] = true; if (key === "pit" && Race.canDrive()) { const p = Cars.list[0]; if (!p.inPit) p.pitRequest = !p.pitRequest; } });
+    el.addEventListener("pointerup",   (e) => { e.preventDefault(); state.input[key] = false; });
+    el.addEventListener("pointerleave",(e) => { state.input[key] = false; });
+  };
+  touchBind("t-left", "left");
+  touchBind("t-right", "right");
+  touchBind("t-accel", "accel");
+  touchBind("t-brake", "brake");
+  touchBind("t-reverse", "reverse");
+  touchBind("t-pit", "pit");
+}
+
+/* =============================================================================
+   UTIL
+   ============================================================================= */
+function wrapAngle(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
+
+/* =============================================================================
+   MAIN LOOP — fixed-timestep physics, render once per RAF
+   ============================================================================= */
+let lastT = performance.now();
+let accum = 0;
+function loop(now) {
+  const realDt = Math.min(0.1, (now - lastT) / 1000);
+  lastT = now;
+  accum += realDt;
+  let steps = 0;
+  while (accum >= CFG.FIXED_DT && steps < CFG.MAX_SUBSTEPS) {
+    step(CFG.FIXED_DT);
+    accum -= CFG.FIXED_DT;
+    steps++;
+  }
+  Render.draw();
+  const player = Cars.list[0];
+  UI.tickHUD(player);
+  updateLightsDOM();
+  requestAnimationFrame(loop);
+}
+
+function step(dt) {
+  Race.update(dt);
+
+  // Only let AI / player drive after GO
+  if (Race.getState() === "racing") {
+    const player = Cars.list[0];
+    player.applyPlayerInput(state.input, dt);
+    for (let i = 1; i < Cars.list.length; i++) Cars.list[i].applyAI(dt);
+  }
+
+  // Pit + progress + collisions for everyone
+  for (const c of Cars.list) {
+    c.updatePit(dt);
+    c.updateProgress(dt);
+  }
+  checkCollisions(dt);
+
+  // Engine sound: driven by player speed
+  const player = Cars.list[0];
+  if (Race.getState() === "racing") {
+    const speed01 = clamp(Math.abs(player.vx) / player.topSpeed, 0, 1);
+    const thr01 = state.input.accel ? 1 : 0;
+    // Reverse lowers the engine pitch — subtle but distinct aural cue
+    // that you're rolling backwards.
+    Audio.setEngine(speed01, thr01, state.input.reverse);
+  }
+}
+
+function updateLightsDOM() {
+  const lightsEl = document.getElementById("lights");
+  const labelEl  = document.getElementById("lights-label");
+  const st = Race.getState();
+  if (st === "lights") {
+    lightsEl.style.display = "flex";
+    labelEl.style.display = "block";
+    // We rely on Race.update having updated lightsOn via prevLightsOn diff;
+    // but Race.update stores it in a closure-local var. Re-derive from the DOM
+    // by computing the same logic: lights go out as extinguishIdx increases.
+    // We can pull the current extinguish state from the Race module via a
+    // dedicated getter: see below.
+    const extin = Race.getExtinguished();
+    for (let i = 0; i < 5; i++) {
+      const on = extin < i;
+      document.getElementById("light-" + i).classList.toggle("on", on);
+    }
+    if (extin >= 5) {
+      lightsEl.classList.add("go");
+      labelEl.textContent = "GO!";
+    } else {
+      lightsEl.classList.remove("go");
+      labelEl.textContent = "LIGHTS";
+    }
+  } else if (st === "racing") {
+    lightsEl.style.display = "none";
+    labelEl.style.display = "none";
+  } else {
+    lightsEl.style.display = "none";
+    labelEl.style.display = "none";
+  }
+}
+
+/* =============================================================================
+   BOOT
+   ============================================================================= */
+function boot() {
+  Cars.spawn();
+  applyDifficulty(state.difficulty);
+  Render.resize();
+  window.addEventListener("resize", () => Render.resize());
+  UI.bindMenu();
+  bindInput();
+  // Expose a tiny debug API (harmless in production)
+  window.__f1 = { Cars, state, Race, TRACK };
+  // Hide the start lights until Race starts
+  document.getElementById("lights").style.display = "none";
+  document.getElementById("lights-label").style.display = "none";
+  requestAnimationFrame(loop);
+}
+
+/* Race.getExtinguished — returns how many of the 5 starting lights have gone
+   out so the HUD can render the right pattern. The lights state lives in the
+   closure inside Race.update, so we expose it via this Race-side field.       */
+Race.getExtinguished = function () { return (Race._extinguished | 0); };
+
+boot();
+</script>
+</body>
+</html>
