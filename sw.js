@@ -1,6 +1,6 @@
 // Game Launcher service worker - caches the shell + thumbnails so the hub
 // opens instantly, but always goes to the network for the games themselves.
-const SHELL = 'games-launcher-shell-v1';
+const SHELL = 'games-launcher-shell-v2';
 const ASSETS = 'games-launcher-assets-v1';
 const SHELL_FILES = [
   './', './index.html', './manifest.webmanifest',

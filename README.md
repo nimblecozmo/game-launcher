@@ -1,6 +1,6 @@
 # 🎮 Game Launcher
 
-Every game Blake has ever made, in one hub. One page, 18 games, zero
+Every game Blake has ever made, in one hub. One page, 20 games, zero
 installs.
 
 👉 **[https://nimblecozmo.github.io/game-launcher/](https://nimblecozmo.github.io/game-launcher/)**
@@ -27,6 +27,8 @@ installs.
 |---|---|
 | **Neon Tetris** | Stack the blocks. Clear the lines. |
 | **Cube 3x3** | A Rubik's cube tutor that teaches the layers. |
+| **Cube 3x3 — Layer 2** | The middle ring, explained step by step. |
+| **Hang-Man** | Guess the word. Six lives, one free hint. |
 
 ### 🕹️ Arcade
 | Game | What it is |
@@ -70,7 +72,7 @@ game-launcher/
 ├── manifest.webmanifest    PWA manifest
 ├── sw.js                   service worker (caches the shell + thumbnails)
 ├── icons/                  launcher icons
-├── thumbs/                 18 game screenshots
+├── thumbs/                 20 game screenshots
 └── games/
     ├── penalty-fc/          copy of the game
     ├── chef-curry/
