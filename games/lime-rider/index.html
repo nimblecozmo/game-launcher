@@ -90,6 +90,12 @@
     .hud-speed .num { font-size: 38px; }
   }
 </style>
+<style id="mobile-fix">
+/* --- mobile responsiveness fixes (added by the game launcher audit) --- */
+html,body{max-width:100%;overflow-x:hidden;}
+canvas{max-width:100%!important;max-height:100vh!important;}
+#game{width:100%!important;height:auto!important;}
+</style>
 </head>
 <body>
 <canvas id="game"></canvas>
