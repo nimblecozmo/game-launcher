@@ -1,6 +1,6 @@
 # 🎮 Game Launcher
 
-Every game Blake has ever made, in one hub. One page, 20 games, zero
+Every game Blake has ever made, in one hub. One page, 16 games, zero
 installs.
 
 👉 **[https://nimblecozmo.github.io/game-launcher/](https://nimblecozmo.github.io/game-launcher/)**
@@ -28,16 +28,13 @@ installs.
 | **Neon Tetris** | Stack the blocks. Clear the lines. |
 | **Cube 3x3** | A Rubik's cube tutor that teaches the layers. |
 | **Cube 3x3 — Layer 2** | The middle ring, explained step by step. |
-| **Hang-Man** | Guess the word. Six lives, one free hint. |
 
 ### 🕹️ Arcade
 | Game | What it is |
 |---|---|
 | **Minecraft Bounce** | Bounce the Steve block across the world. |
 | **Minecraft Bounce — No Blood** | Same bounce, zero blood. |
-| **Geometry Dash** | Rhythm platformer. Tap to jump the spikes. |
 | **One-Shot Geometry Dash** | One shot. One life. Geometry Dash. |
-| **Lime Rider** | The lime-green dirtbike. Send it flying. |
 | **Mario-lite Platformer** | Jump the pits, grab the coins. |
 | **Snake** | Classic snake with sound effects. |
 | **Snake 2** | Snake, but faster. With speed controls. |
@@ -47,7 +44,6 @@ installs.
 | Game | What it is |
 |---|---|
 | **Flowstate** | Real GPU Navier–Stokes fluid. Draw your own walls. |
-| **2D Fluid Simulator** | The original CPU fluid demo. |
 
 ---
 
@@ -72,7 +68,7 @@ game-launcher/
 ├── manifest.webmanifest    PWA manifest
 ├── sw.js                   service worker (caches the shell + thumbnails)
 ├── icons/                  launcher icons
-├── thumbs/                 20 game screenshots
+├── thumbs/                 16 game screenshots
 └── games/
     ├── penalty-fc/          copy of the game
     ├── chef-curry/
