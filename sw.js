@@ -1,7 +1,7 @@
 // Game Launcher service worker - caches the shell + thumbnails so the hub
 // opens instantly, but always goes to the network for the games themselves.
-const SHELL = 'games-launcher-shell-v2';
-const ASSETS = 'games-launcher-assets-v1';
+const SHELL = 'games-launcher-shell-v3';
+const ASSETS = 'games-launcher-assets-v2';
 const SHELL_FILES = [
   './', './index.html', './manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'
@@ -38,6 +38,12 @@ self.addEventListener('fetch', e => {
         )
       )
     );
+    return;
+  }
+
+  // the F1 game is rebuilt often - always go to the network for it
+  if (url.pathname.includes('/games/f1-racing/')) {
+    e.respondWith(fetch(req, { cache: 'reload' }).catch(() => caches.match(req)));
     return;
   }
 
