@@ -23,13 +23,20 @@
     </div>
 
 <script>
-// Self-heal: if the game never painted (stale cached HTML pointing at a
-// build that no longer exists), reload once with a cache-busting URL.
+// Self-heal: a stale cached index.html can point at a build that no
+// longer exists -> the JS 404s -> white page with no track.
+//
+// Two-stage repair:
+//   1. If the canvas was never painted, look for a script that failed to
+//      load and repoint it at the current bundle.
+//   2. If that is not possible, reload ONCE with a cache-busting query.
+//      Guarded so it can never loop.
 (function () {
     var done = false;
     setTimeout(function () {
         if (done) return;
         done = true;
+
         var c = document.getElementById('gameCanvas');
         var painted = false;
         try {
@@ -39,16 +46,34 @@
                 for (var i = 0; i < pts.length; i++) {
                     var x = Math.floor(c.width * pts[i][0]);
                     var y = Math.floor(c.height * pts[i][1]);
-                    var d = g.getImageData(x, y, 1, 1).data;
-                    if (d[3] > 0) { painted = true; break; }
+                    if (g.getImageData(x, y, 1, 1).data[3] > 0) { painted = true; break; }
                 }
             }
         } catch (e) { painted = false; }
-        if (!painted) {
-            var u = new URL(window.location.href);
-            u.searchParams.set('cb', Date.now());
-            window.location.replace(u.toString());
+        if (painted) return;
+
+        // 1. repoint a bundle that failed to load
+        var scripts = [].slice.call(document.querySelectorAll('script[type="module"]'));
+        var broken = scripts.filter(function (s) {
+            return s.src && s.src.indexOf('/assets/') > -1;
+        });
+        if (broken.length) {
+            broken.forEach(function (s) {
+                var fresh = s.src.replace(/\/assets\/[^?]+/, '/assets/game.js') + (s.src.indexOf('?') > -1 ? '' : '?r=' + Date.now());
+                var n = document.createElement('script');
+                n.type = 'module';
+                n.crossOrigin = 'anonymous';
+                n.src = fresh;
+                document.head.appendChild(n);
+            });
+            return;
         }
+
+        // 2. reload once, never twice
+        var u = new URL(window.location.href);
+        if (u.searchParams.get('cb')) return;      // already tried
+        u.searchParams.set('cb', Date.now());
+        window.location.replace(u.toString());
     }, 2500);
 })();
 </script>
